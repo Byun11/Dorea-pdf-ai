@@ -1,0 +1,47 @@
+services:
+  huridocs:
+    image: byunbyun/huridocs-sm120:updated
+    container_name: huridocs-api
+    ports:
+      - "8001:5060"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TOKENIZERS_PARALLELISM=false
+    networks:
+      - pdf-network
+    restart: unless-stopped
+
+  pdf-ai:
+    build: ./Dorea-backend
+    container_name: Dorea-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DOCKER_API_URL=http://huridocs:5060
+      - OLLAMA_API_URL=http://ollama:11434
+    volumes:
+      - ./DATABASE:/app/database
+      - ./Dorea-backend/src:/app/src
+    depends_on:
+      - huridocs
+      - ollama
+    networks:
+      - pdf-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ./ollama_data:/root/.ollama
+    networks:
+      - pdf-network
+    restart: unless-stopped
+
+
+networks:
+  pdf-network:
+    driver: bridge

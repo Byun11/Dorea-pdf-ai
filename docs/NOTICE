@@ -1,0 +1,29 @@
+Dorea PDF AI System
+Copyright 2025 KISTI 초거대AI연구센터 AI플랫폼팀
+
+This software uses the following open source components:
+
+HURIDOCS PDF Document Layout Analysis
+Copyright 2023 HURIDOCS
+Licensed under the Apache License, Version 2.0
+Original source: https://github.com/huridocs/pdf-document-layout-analysis
+Used as: Docker image huridocs/pdf-document-layout-analysis:latest
+
+Ollama
+Copyright 2023 Ollama Inc.
+Licensed under the MIT License
+Original source: https://github.com/ollama/ollama
+Used as: Docker image ollama/ollama
+
+FastAPI
+Copyright 2018-2024 Sebastián Ramírez
+Licensed under the MIT License
+Original source: https://github.com/tiangolo/fastapi
+Used as: Python package dependency
+
+This product uses:
+- HURIDOCS Docker image for PDF document layout analysis and OCR functionality
+- Ollama Docker image for local LLM inference
+- Additional language packs (Korean, Japanese, Chinese) installed at runtime
+
+This entire project is licensed under Apache 2.0.

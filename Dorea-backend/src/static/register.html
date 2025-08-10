@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorea - 회원가입</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%233b82f6'/><stop offset='100%25' style='stop-color:%231d4ed8'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23grad)'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' font-size='18' font-weight='600'>D</text></svg>">
+    <link rel="stylesheet" href="/static/css/auth.css">
+</head>
+
+<body>
+    <!-- 홈으로 돌아가기 버튼 -->
+    <a href="/" class="back-to-home">← 홈으로</a>
+
+    <div class="login-container">
+        <div class="logo">
+            <div class="logo-symbol">D</div>
+            <h1>Dorea</h1>
+            <p>회원가입하고 스마트 문서 분석을 시작하세요</p>
+        </div>
+
+        <div id="errorMessage" class="error-message"></div>
+        <div id="successMessage" class="success-message"></div>
+
+        <div id="loadingIndicator" class="loading">
+            <div class="spinner"></div>
+            <span>회원가입 처리 중...</span>
+        </div>
+
+        <form class="login-form" id="registerForm">
+            <div class="form-group">
+                <label for="username">ID</label>
+                <input type="text" id="username" name="username" placeholder="ID" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="email">이메일</label>
+                <input type="email" id="email" name="email" placeholder="your@email.com" required autocomplete="email">
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" id="password" name="password" placeholder="비밀번호" required autocomplete="new-password">
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">비밀번호 확인</label>
+                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="비밀번호 확인" required autocomplete="new-password">
+            </div>
+
+            <button type="submit" class="login-btn" id="registerBtn">
+                회원가입
+            </button>
+        </form>
+
+        <div class="auth-links">
+            <p>이미 계정이 있으신가요? <a href="/login">로그인</a></p>
+        </div>
+
+        <div class="help-section">
+            <h4>회원가입 안내</h4>
+            <ol>
+                <li>ID와 이메일로 계정을 생성합니다</li>
+                <li>로그인 후 설정 페이지에서 API 키를 등록할 수 있습니다</li>
+                <li>API 키 없이도 기본 기능을 사용할 수 있습니다</li>
+            </ol>
+            <div class="security-note">
+                <strong>개인정보 보호:</strong> 모든 정보는 안전하게 암호화되어 저장됩니다.
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/static/js/register.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorea - PDF 문서 기반 대화 시스템</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%233b82f6'/><stop offset='100%25' style='stop-color:%231d4ed8'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23grad)'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' font-size='18' font-weight='600'>D</text></svg>">
+    <link rel="stylesheet" href="/static/css/landing.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-container">
+            <a href="/" class="logo">
+                <div class="logo-symbol">D</div>
+                <div class="logo-text">Dorea</div>
+            </a>
+            <nav class="nav">
+                <!-- Navigation removed -->
+            </nav>
+            <div class="header-actions">
+                <a href="/register" class="header-cta header-cta-secondary">회원가입</a>
+                <a href="/login" class="header-cta">로그인</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1>문서를 <span class="highlight">클릭</span>하세요</h1>
+                <p class="hero-subtitle">PDF의 특정 영역을 클릭하고 선택해서 AI와 대화하세요. 이미지, 텍스트, 표를 정확히 분석합니다.</p>
+                <div class="hero-actions">
+                    <a href="/login" class="btn-primary">무료로 시작하기</a>
+                    <a href="#features" class="btn-secondary">
+                        기능 살펴보기 →
+                    </a>
+                </div>
+            </div>
+            <div class="hero-demo">
+                <div class="interactive-demo">
+                    <div class="demo-header">
+                        <div class="demo-title">Dorea AI Chat</div>
+                        <div class="demo-controls">
+                            <div class="demo-dot"></div>
+                            <div class="demo-dot"></div>
+                            <div class="demo-dot"></div>
+                        </div>
+                    </div>
+                    <div class="demo-content" id="demoChat">
+                        <div class="chat-message user">
+                            이 차트 영역을 분석해주세요
+                        </div>
+                        <div class="chat-message ai">
+                            선택하신 차트를 분석해드릴게요!<br><br>
+                            📊 매출 추이 그래프 (2024년)<br>
+                            📈 3분기 대비 4분기 25% 성장<br>
+                            🎯 연간 목표 대비 108% 달성
+                        </div>
+                        <div class="chat-message user">
+                            5페이지 텍스트 부분을 요약해주세요
+                        </div>
+                        <div class="typing-indicator chat-message" id="typingIndicator">
+                            <div class="typing-dots">
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                                <div class="typing-dot"></div>
+                            </div>
+                            AI가 응답 중입니다...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+        <div class="features-container">
+            <div class="section-header">
+                <h2>클릭으로 분석하세요</h2>
+                <p>문서의 원하는 영역을 클릭하면 AI가 즉시 분석해드립니다</p>
+            </div>
+            <div class="features-layout">
+                <div class="feature-main">
+                    <span class="feature-icon">🎯</span>
+                    <h3>클릭 기반 영역 분석</h3>
+                    <p>문서의 원하는 부분을 직접 클릭하고 선택하세요. 이미지, 텍스트, 표 등 어떤 영역이든 정확히 분석해드립니다.</p>
+                    <div class="feature-highlight">
+                        ⚡ 영역별 맞춤 분석
+                    </div>
+                </div>
+                <div class="feature-sub">
+                    <span class="feature-icon">🖼️</span>
+                    <h3>이미지 분석</h3>
+                    <p>차트, 그래프, 도표를 클릭하면 시각적 데이터를 해석하고 설명합니다.</p>
+                </div>
+                <div class="feature-sub">
+                    <span class="feature-icon">📝</span>
+                    <h3>텍스트 요약</h3>
+                    <p>긴 문단을 선택하면 핵심 내용만 간단히 요약해드립니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works -->
+    <section class="how-it-works">
+        <div class="how-container">
+            <div class="section-header">
+                <h2>사용법</h2>
+                <p>3단계로 간단하게 시작하세요</p>
+            </div>
+            <div class="steps-grid">
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <h3>PDF 업로드</h3>
+                    <p>분석하고 싶은 PDF 문서를 드래그 앤 드롭으로 업로드하세요.</p>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <h3>영역 클릭</h3>
+                    <p>분석하고 싶은 이미지, 텍스트, 표를 직접 클릭해서 선택하세요.</p>
+                </div>
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <h3>즉시 분석</h3>
+                    <p>선택한 영역에 맞는 맞춤형 분석 결과를 즉시 받아보세요.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta">
+        <div class="cta-container">
+            <h2>지금 바로 시작해보세요</h2>
+            <p>OpenAI API 키만 있으면 무료로 사용할 수 있습니다</p>
+            <a href="/login" class="btn-primary">Dorea 시작하기</a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-container">
+            <div class="footer-text">
+                © 2025 Dorea. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
+    <script type="module" src="/static/js/landing.js"></script>
+</body>
+
+</html>
