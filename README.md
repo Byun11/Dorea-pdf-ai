@@ -80,6 +80,16 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 
 이 프로젝트는 Apache License 2.0에 따라 라이선스가 부여됩니다. 자세한 내용은 [LICENSE.md](docs/LICENSE.md) 파일을 참조하세요.
 
+### 오픈소스 라이브러리
+
+이 프로젝트는 다음 오픈소스 컴포넌트를 사용합니다:
+
+- **[HURIDOCS](https://github.com/huridocs/pdf-document-layout-analysis)** - PDF 문서 레이아웃 분석 (Apache 2.0)
+- **[Ollama](https://github.com/ollama/ollama)** - 로컬 LLM 추론 엔진 (MIT)  
+- **[FastAPI](https://github.com/tiangolo/fastapi)** - 웹 프레임워크 (MIT)
+
+전체 라이선스 정보는 [NOTICE](docs/NOTICE) 파일을 참조하세요.
+
 ## 🆘 지원
 
 - 🐛 **버그 리포트**: [이슈 생성](https://github.com/Byun11/Dorea-pdf-ai/issues)
