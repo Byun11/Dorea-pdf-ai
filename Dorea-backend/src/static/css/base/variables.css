@@ -1,0 +1,107 @@
+/* =====================================================
+   Dorea CSS Variables - Design System
+   ===================================================== */
+
+/* 🎨 Design System - 완전히 새로운 세련된 디자인 */
+:root {
+    /* 브랜드 색상 */
+    --primary: #3b82f6;
+    --primary-light: #60a5fa;
+    --primary-dark: #1d4ed8;
+
+    /* 중성 색상 - 매우 세련됨 */
+    --gray-50: #fafafa;
+    --gray-100: #f5f5f5;
+    --gray-200: #e5e5e5;
+    --gray-300: #d4d4d4;
+    --gray-400: #a3a3a3;
+    --gray-500: #737373;
+    --gray-600: #525252;
+    --gray-700: #404040;
+    --gray-800: #262626;
+    --gray-900: #171717;
+
+    /* 상태 색상 */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+
+    /* 배경 시스템 */
+    --bg-primary: #fafafa;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f5f5f5;
+
+    /* 텍스트 색상 */
+    --text-primary: #171717;
+    --text-secondary: #737373;
+    --text-tertiary: #a3a3a3;
+
+    /* 테두리 */
+    --border-primary: #e5e5e5;
+    --border-secondary: #d4d4d4;
+
+    /* 그림자 시스템 */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+
+    /* 타이포그래피 */
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", monospace;
+    
+    /* 폰트 크기 시스템 (+5pt 총 증가) */
+    --font-xs: 17px;   /* 원래 12px → 14px → 17px */
+    --font-sm: 19px;   /* 원래 14px → 16px → 19px */
+    --font-base: 21px; /* 원래 16px → 18px → 21px */
+    --font-lg: 23px;   /* 원래 18px → 20px → 23px */
+    --font-xl: 25px;   /* 원래 20px → 22px → 25px */
+    --font-2xl: 29px;  /* 원래 24px → 26px → 29px */
+
+    /* 간격 시스템 */
+    --space-1: 0.25rem;
+    --space-2: 0.5rem;
+    --space-3: 0.75rem;
+    --space-4: 1rem;
+    --space-6: 1.5rem;
+    --space-8: 2rem;
+
+    /* 반경 */
+    --radius-sm: 0.375rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+
+    /* 애니메이션 */
+    --duration-fast: 150ms;
+    --duration-normal: 200ms;
+    --duration-slow: 300ms;
+    --ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 다크모드 */
+[data-theme="dark"] {
+    --bg-primary: #0a0a0a;
+    --bg-secondary: #171717;
+    --bg-tertiary: #262626;
+    --text-primary: #fafafa;
+    --text-secondary: #a3a3a3;
+    --text-tertiary: #737373;
+    --border-primary: #262626;
+    --border-secondary: #404040;
+    --gray-50: #171717;
+    --gray-100: #262626;
+    --gray-200: #404040;
+    --gray-300: #525252;
+    --gray-400: #737373;
+    --gray-500: #a3a3a3;
+    --gray-600: #d4d4d4;
+    --gray-700: #e5e5e5;
+    --gray-800: #f5f5f5;
+    --gray-900: #fafafa;
+    
+    /* 다크모드 전용 색상 개선 */
+    --primary-light: #60a5fa;
+    --success-light: #34d399;
+    --success-dark: #059669;
+}

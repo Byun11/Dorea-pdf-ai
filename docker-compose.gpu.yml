@@ -1,0 +1,41 @@
+services:
+  huridocs:
+    image: byunbyun/huridocs-sm120:updated
+    container_name: huridocs-api
+    ports:
+      - "8001:5060"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TOKENIZERS_PARALLELISM=false
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    networks:
+      - pdf-network
+    restart: unless-stopped
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    volumes:
+      - ./ollama_data:/root/.ollama
+    networks:
+      - pdf-network
+    restart: unless-stopped
+
+networks:
+  pdf-network:
+    driver: bridge

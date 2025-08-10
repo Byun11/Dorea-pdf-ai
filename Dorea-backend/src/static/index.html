@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dorea - PDF 문서 기반 대화 시스템</title>
+    <!-- 파비콘 추가 -->
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%233b82f6'/><stop offset='100%25' style='stop-color:%231d4ed8'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23grad)'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' font-size='18' font-weight='600'>D</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <!-- KaTeX for LaTeX math rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+    <link rel="stylesheet" href="/static/css/main.css">
+</head>
+
+<body>
+    <header class="header">
+        <div class="header-left">
+            <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" aria-label="사이드바 토글"
+                title="사이드바 열기/닫기">
+                <div class="toggle-icon-container">
+                    <!-- 기본 패널 아이콘 (열린 상태) -->
+                    <svg class="panel-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" clip-rule="evenodd"
+                            d="M2.5 3C1.67157 3 1 3.67157 1 4.5V15.5C1 16.3284 1.67157 17 2.5 17H17.5C18.3284 17 19 16.3284 19 15.5V4.5C19 3.67157 18.3284 3 17.5 3H2.5ZM2 4.5C2 4.22386 2.22386 4 2.5 4H6V16H2.5C2.22386 16 2 15.7761 2 15.5V4.5ZM7 16H17.5C17.7761 16 18 15.7761 18 15.5V4.5C18 4.22386 17.7761 4 17.5 4H7V16Z">
+                        </path>
+                    </svg>
+                    <!-- 화살표 아이콘 (닫힌 상태) -->
+                    <svg class="arrow-icon" width="18" height="18" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" clip-rule="evenodd"
+                            d="M5 10C5 9.85913 5.05943 9.72479 5.16366 9.63003L10.6637 4.63003C10.868 4.44428 11.1842 4.45933 11.37 4.66366C11.5557 4.86799 11.5407 5.18422 11.3363 5.36997L6.7933 9.5L17.5 9.5C17.7761 9.5 18 9.72386 18 10C18 10.2761 17.7761 10.5 17.5 10.5L6.7933 10.5L11.3363 14.63C11.5407 14.8158 11.5557 15.132 11.37 15.3363C11.1842 15.5407 10.868 15.5557 10.6637 15.37L5.16366 10.37C5.05943 10.2752 5 10.1409 5 10Z">
+                        </path>
+                        <path fill-rule="evenodd" clip-rule="evenodd"
+                            d="M2.5 2C2.77614 2 3 2.22386 3 2.5L3 17.5C3 17.7761 2.77614 18 2.5 18C2.22385 18 2 17.7761 2 17.5L2 2.5C2 2.22386 2.22386 2 2.5 2Z">
+                        </path>
+                    </svg>
+                </div>
+            </button>
+            <div class="logo" onclick="goHome()" style="cursor: pointer;" title="홈으로 돌아가기">
+                <div class="logo-icon">D</div>
+                <div class="logo-text">Dorea</div>
+                <span class="separator">|</span>
+                <img src="/static/ai_kisti.png" alt="KISTI AI" class="kisti-logo" loading="lazy">
+                <span class="platform-text">AI Platform</span>
+                <span class="separator">|</span>
+                <span class="org-text">KISTI</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button class="settings-btn" onclick="openSettingsModal()" title="모델 설정">
+                ⚙️ 설정
+            </button>
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                🌙 다크
+            </button>
+            <button class="logout-btn" onclick="logout()">
+                로그아웃
+            </button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 왼쪽 사이드바 -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">문서 목록</div>
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    + 파일 추가
+                </button>
+                <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+            </div>
+            <div class="file-list" id="fileList">
+                <div class="empty-state">
+                    <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
+                    <h3>업로드된 파일이 없습니다</h3>
+                    <p>PDF 파일을 선택하거나 드래그해주세요.</p>
+                    <button onclick="document.getElementById('fileInput').click()">
+                        파일 선택하기
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PDF 뷰어 -->
+        <div class="pdf-container" id="pdfContainer">
+            <!-- 모던 랜딩 오버레이 -->
+            <div class="landing-overlay" id="landingOverlay">
+                <div class="landing-container">
+                    <!-- 메인 컨텐츠 -->
+                    <div class="landing-content">
+                        <!-- 상단 아이콘 -->
+                        <div class="landing-icon">
+                            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14,2 14,8 20,8"></polyline>
+                                <line x1="16" y1="13" x2="8" y2="13"></line>
+                                <line x1="16" y1="17" x2="8" y2="17"></line>
+                                <polyline points="10,9 9,9 8,9"></polyline>
+                            </svg>
+                        </div>
+                        
+                        <!-- 제목과 설명 -->
+                        <div class="landing-text">
+                            <h1 class="landing-title">PDF 문서 분석</h1>
+                            <p class="landing-description">
+                                PDF 문서를 업로드하고<br>
+                                AI와 대화하며 정보를 찾아보세요
+                            </p>
+                        </div>
+                        
+                        <!-- 업로드 영역 -->
+                        <div class="landing-upload">
+                            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                                <div class="upload-icon">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7,10 12,15 17,10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                </div>
+                                <span class="upload-text">파일을 드래그하거나 클릭하세요</span>
+                                <span class="upload-hint">PDF 형식만 지원</span>
+                            </div>
+                            
+                            <div class="upload-divider">
+                                <span>또는</span>
+                            </div>
+                            
+                            <button class="upload-button" onclick="document.getElementById('fileInput').click()">
+                                파일 선택하기
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 기존 업로드 존 제거됨 - 랜딩 오버레이로 대체 -->
+        </div>
+
+        <!-- AI 채팅 패널 -->
+        <div class="ai-panel hidden" id="aiPanel">
+            <div class="resize-handle" id="resizeHandle"></div>
+            <div class="chat-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="flex: 1;">
+                        <h3 id="currentFileName">파일을 선택해주세요</h3>
+                        <div class="session-info" id="sessionName">채팅 세션</div>
+                        <select id="sessionSelect" style="
+                            width: 100%; 
+                            padding: 4px 8px; 
+                            margin-top: 4px; 
+                            border: 1px solid var(--border-primary); 
+                            border-radius: var(--radius-sm); 
+                            font-size: 12px;
+                            background: var(--bg-tertiary);
+                            color: var(--text-secondary);
+                            display: none;
+                        " onchange="switchToSession(this.value)">
+                            <option value="">채팅 세션 선택</option>
+                        </select>
+                    </div>
+                    <div class="chat-controls" id="chatControls" style="display: none;">
+                        <div class="font-size-controls">
+                            <button onclick="adjustFontSize(-1)" title="글자 크기 작게" class="font-btn">A-</button>
+                            <button onclick="adjustFontSize(1)" title="글자 크기 크게" class="font-btn">A+</button>
+                        </div>
+                        <div class="chat-controls-horizontal">
+                            <button onclick="newSession()" class="new-btn" title="새 채팅 시작">
+                                💬
+                            </button>
+                            <button onclick="renameSession()" title="세션 이름 변경">
+                                ✏️
+                            </button>
+                            <button onclick="deleteSession()" class="delete-btn" title="세션 삭제">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-container" id="chatContainer">
+                <!-- 환영 메시지 -->
+                <div class="chat-message ai">
+                    <div class="message-avatar ai">AI</div>
+                    <div class="message-bubble">
+                        <div class="message-content">
+                            안녕하세요! PDF 문서 분석을 도와드리는 AI 어시스턴트입니다.
+                            문서를 업로드하고 특정 영역을 클릭하거나 직접 질문해주세요.
+                        </div>
+                        <div class="message-time" id="welcomeTime"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <!-- 다중 선택된 세그먼트 표시 -->
+                <div id="multiSelectedSegments" class="selected-segments-container" style="display: none;">
+                    <div class="segments-header">
+                        <span class="segments-title">선택된 영역</span>
+                        <span id="segmentsCount" class="segments-count">0개</span>
+                        <button class="clear-all-btn" onclick="clearAllSegments()">전체 해제</button>
+                    </div>
+                    <div id="segmentsList" class="segments-list"></div>
+                </div>
+
+                <!-- 기존 단일 선택 표시 -->
+                <div id="selectedSegmentIndicator" class="selected-segment-indicator" style="display: none;">
+                    <div style="font-weight: 500;">선택된 영역: <span id="segmentType">텍스트</span></div>
+                    <div id="segmentPreview" style="margin-top: 4px; color: var(--text-tertiary);"></div>
+                </div>
+
+                <!-- 퀵 액션 버튼들 -->
+                <div id="quickActions" class="quick-actions" style="display: none;">
+                    <div class="quick-actions-left">
+                        <button class="quick-action-btn" onclick="quickAction('translate')">번역</button>
+                        <button class="quick-action-btn" onclick="quickAction('summarize')">요약</button>
+                        <button class="quick-action-btn" onclick="quickAction('explain')">설명</button>
+                        <button class="quick-action-btn" onclick="quickAction('analyze')">분석</button>
+                    </div>
+                    <div class="quick-actions-right">
+                        <button id="imageToggleBtn" class="image-toggle-btn" onclick="toggleImageMode()" title="이미지 모드: 채팅과 함께 이미지로 전송">
+                            <span class="toggle-icon">📷</span>
+                            <span class="toggle-text">이미지 모드</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 채팅 입력 -->
+                <div class="chat-input-wrapper">
+                    <textarea id="chatInput" placeholder="질문을 입력하세요..." rows="1"></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <span style="font-size: 16px;">→</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 다중 업로드 모달 -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content" style="max-width: 80vw; max-height: 80vh; width: auto; height: auto;">
+            <div class="modal-header">
+                <h2>📄 파일 업로드 설정</h2>
+                <span class="close" onclick="closeUploadModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <!-- 언어 일괄 설정 섹션 -->
+                <div class="bulk-language-section">
+                    <div class="bulk-language-header">
+                        <div class="icon">🌐</div>
+                        <h3>언어 일괄 설정</h3>
+                    </div>
+                    <div class="bulk-language-controls">
+                        <div class="language-select-wrapper">
+                            <label for="bulkLanguageSelect">모든 파일의 언어를 일괄 설정:</label>
+                            <select id="bulkLanguageSelect" class="bulk-language-select">
+                                <option value="">언어 선택</option>
+                                <option value="ko">한국어</option>
+                                <option value="en">English</option>
+                                <option value="ja">日本語</option>
+                                <option value="zh">中文</option>
+                                <option value="es">Español</option>
+                                <option value="fr">Français</option>
+                                <option value="de">Deutsch</option>
+                                <option value="ru">Русский</option>
+                                <option value="it">Italiano</option>
+                                <option value="pt">Português</option>
+                                <option value="ar">العربية</option>
+                                <option value="hi">हिन्दी</option>
+                            </select>
+                        </div>
+                        <button id="applyBulkLanguageBtn" class="apply-bulk-language-btn" onclick="applyBulkLanguage()">
+                            일괄 적용
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="uploadFileList"></div>
+                <button id="processFilesBtn" class="process-btn" onclick="processFiles()">
+                    파일 처리 시작
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 모델 관리 모달 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content model-management-modal"
+             style="max-width: 95vw; max-height: 85vh; width: auto; height: auto; min-width: 800px;">
+            <div class="modal-header">
+                <h2>⚙️ 시스템 설정</h2>
+                <span class="close" onclick="closeSettingsModal()">&times;</span>
+            </div>
+
+
+            <div class="modal-body">
+                <!-- 메인 컨텐츠 -->
+                <div class="flex flex-col md:flex-row w-full md:space-x-4">
+                <!-- 왼쪽: 모델 제공자 선택 -->
+                <div class="flex flex-col w-full md:w-1/3 p-3">
+                    <h3 class="text-sm font-medium text-gray-700 mb-3">AI 모델 선택</h3>
+                    
+                    <!-- GPT API 토글 -->
+                    <div class="model-toggle-item" onclick="selectProvider('gpt')">
+                        <div class="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50" id="gptToggle">
+                            <div class="flex items-center">
+                                <div class="w-4 h-4 border-2 border-gray-300 rounded-full mr-3" id="gptRadio"></div>
+                                <div>
+                                    <div class="font-medium text-sm">GPT API</div>
+                                    <div class="text-xs text-gray-500">OpenAI 클라우드 모델</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Local Model 토글 -->
+                    <div class="model-toggle-item mt-2" onclick="selectProvider('ollama')">
+                        <div class="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-gray-50" id="ollamaToggle">
+                            <div class="flex items-center">
+                                <div class="w-4 h-4 border-2 border-gray-300 rounded-full mr-3" id="ollamaRadio"></div>
+                                <div>
+                                    <div class="font-medium text-sm">Local Model</div>
+                                    <div class="text-xs text-gray-500">Ollama 로컬 모델</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 현재 선택된 모델 표시 -->
+                    <div class="mt-4 p-3 bg-blue-50 rounded-lg" id="currentModelInfo">
+                        <div class="text-xs text-blue-600 mb-1">현재 선택된 모델</div>
+                        <div class="font-medium text-sm" id="currentModelName">로딩 중...</div>
+                    </div>
+                </div>
+
+                <!-- 오른쪽: GPT API 키 관리 -->
+                <div class="flex flex-col w-full md:w-2/3 p-3" id="gptApiKeyManagement" style="display: none;">
+                    <!-- API 키 설정 섹션 -->
+                    <div class="api-key-section">
+                        <h3 class="api-section-title">
+                            <span>🔑</span>
+                            OpenAI API 키 설정
+                        </h3>
+                        
+                        <div class="api-form-group">
+                            <label class="api-form-label">API 키</label>
+                            <div class="api-input-row">
+                                <input 
+                                    type="password" 
+                                    id="apiKeyInput" 
+                                    class="api-input-field"
+                                    placeholder="sk-proj-..."
+                                >
+                                <button 
+                                    onclick="saveApiKey()" 
+                                    class="api-save-button"
+                                    id="saveApiKeyBtn"
+                                >
+                                    저장
+                                </button>
+                            </div>
+                            <div class="api-help-text">
+                                <span>🔒</span>
+                                <span>API 키는 안전하게 암호화되어 저장됩니다</span>
+                            </div>
+                            <div id="apiKeyStatus" class="api-status hidden"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="api-info-section">
+                        <h4 class="api-info-title">
+                            <span>💡</span>
+                            사용 안내
+                        </h4>
+                        <ul class="api-info-list">
+                            <li class="api-info-item">OpenAI 계정에서 API 키를 발급받으세요</li>
+                            <li class="api-info-item">사용량에 따라 요금이 부과됩니다</li>
+                            <li class="api-info-item">높은 품질의 AI 응답을 제공합니다</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 오른쪽: Ollama 모델 관리 -->
+                <div class="flex flex-col w-full md:w-2/3 p-3" id="ollamaManagement" style="display: none;">
+                    <!-- 모델 목록 및 선택 (기본 표시) -->
+                    <div class="mb-4">
+                        <div class="mb-2 text-sm font-medium">설치된 모델 선택</div>
+                        <select id="installedModelSelect" class="w-full py-2 px-4 text-sm border border-gray-300 rounded-lg bg-gray-50">
+                            <option value="">모델을 불러오는 중...</option>
+                        </select>
+                    </div>
+
+                    <!-- 고급 옵션 토글 버튼 -->
+                    <div class="mb-4">
+                        <button 
+                            id="advancedOptionsToggle"
+                            class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-all duration-200"
+                            onclick="toggleAdvancedOptions()"
+                        >
+                            <div class="flex items-center gap-2">
+                                <span>⚙️</span>
+                                <span>고급 옵션</span>
+                                <span class="text-xs text-gray-500">(모델 다운로드/삭제)</span>
+                            </div>
+                            <svg id="advancedOptionsIcon" class="w-4 h-4 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <!-- 고급 옵션 영역 (기본 숨김) -->
+                    <div id="advancedOptionsSection" class="advanced-options-section" style="display: none;">
+                        <!-- Ollama 인스턴스 선택 -->
+                        <div class="mb-4">
+                            <div class="mb-2 text-sm font-medium">Ollama 인스턴스</div>
+                            <select class="w-full py-2 px-4 text-sm border border-gray-300 rounded-lg bg-gray-50">
+                                <option value="0">http://ollama:11434</option>
+                            </select>
+                        </div>
+
+                        <!-- 모델 가져오기 -->
+                        <div class="mb-4">
+                            <div class="mb-2 text-sm font-medium flex items-center gap-1.5">
+                                <span>Ollama.com에서 모델 가져오기(pull)</span>
+                                <button class="flex gap-2 items-center bg-transparent rounded-lg transition">
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                                        <path d="M7 1a.75.75 0 0 1 .75.75V6h-1.5V1.75A.75.75 0 0 1 7 1ZM6.25 6v2.94L5.03 7.72a.75.75 0 0 0-1.06 1.06l2.5 2.5a.75.75 0 0 0 1.06 0l2.5-2.5a.75.75 0 1 0-1.06-1.06L7.75 8.94V6H10a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2.25Z"></path>
+                                        <path d="M4.268 14A2 2 0 0 0 6 15h6a2 2 0 0 0 2-2v-3a2 2 0 0 0-1-1.732V11a3 3 0 0 1-3 3H4.268Z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="flex w-full gap-2">
+                                <input 
+                                    id="pullModelInput" 
+                                    class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" 
+                                    placeholder="모델 태그 입력(예: mistral:7b)"
+                                >
+                                <button 
+                                    id="pullModelBtn"
+                                    class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition"
+                                    onclick="pullModel()"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                                        <path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path>
+                                        <path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="mt-2 text-xs text-gray-500">
+                                다운로드 가능한 모델명을 확인하려면, 
+                                <a class="text-blue-500 font-medium underline" href="https://ollama.com/library" target="_blank">여기를 클릭하세요.</a>
+                            </div>
+                            <div id="pullModelStatus" class="mt-2 p-2 rounded text-sm" style="display: none;"></div>
+                        </div>
+
+                        <!-- 모델 삭제 -->
+                        <div class="mb-4">
+                            <div class="mb-2 text-sm font-medium">모델 삭제</div>
+                            <div class="flex w-full gap-2">
+                                <select id="deleteModelSelect" class="flex-1 py-2 px-4 text-sm border border-gray-300 rounded-lg bg-gray-50">
+                                    <option value="" disabled>모델 선택</option>
+                                </select>
+                                <button 
+                                    id="deleteModelBtn"
+                                    class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+                                    onclick="deleteModel()"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+                                        <path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+
+            <!-- 하단 액션 -->
+            <div class="flex justify-end gap-3 px-5 pb-4 border-t border-gray-200 pt-4" style="background: var(--bg-tertiary);">
+                <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+                    취소
+                </button>
+                <button type="button" onclick="saveModelSettings()" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+                    저장
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 로딩 화면 -->
+    <div class="loading" id="loading" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loadingText">PDF 처리 중...</p>
+        <div class="progress-bar">
+            <div class="progress" id="progress"></div>
+        </div>
+    </div>
+
+    <script type="module" src="/static/js/index.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,231 @@
+/* =====================================================
+   Dorea Button Components - All Button Styles
+   ===================================================== */
+
+/* 기본 버튼 스타일 */
+.btn {
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease);
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 기본 버튼 */
+.btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+}
+
+/* 보조 버튼 */
+.btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--border-secondary);
+}
+
+/* 위험 버튼 */
+.btn-danger {
+    color: var(--error);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    background: transparent;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: var(--error);
+}
+
+/* 성공 버튼 */
+.btn-success {
+    background: var(--success);
+    color: white;
+    border: none;
+}
+
+.btn-success:hover:not(:disabled) {
+    background: #059669;
+}
+
+/* 크기 변형 */
+.btn-sm {
+    padding: var(--space-2) var(--space-3);
+    font-size: 0.75rem;
+}
+
+.btn-lg {
+    padding: var(--space-4) var(--space-6);
+    font-size: 1rem;
+}
+
+/* 전체 너비 버튼 */
+.btn-full {
+    width: 100%;
+}
+
+/* 특정 버튼들 (레거시 지원) */
+.upload-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all var(--duration-normal) var(--ease);
+}
+
+.upload-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+}
+
+.logout-btn {
+    color: var(--error);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.logout-btn:hover {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: var(--error);
+}
+
+.file-delete-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    transition: all var(--duration-fast) var(--ease);
+    opacity: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.file-delete-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+}
+
+.file-cancel-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: var(--space-2);
+    border-radius: var(--radius-sm);
+    transition: all var(--duration-fast) var(--ease);
+    opacity: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 4px;
+}
+
+.file-cancel-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+}
+
+.file-actions {
+    display: flex;
+    align-items: center;
+}
+
+.file-item:hover .file-cancel-btn,
+.file-item:hover .file-delete-btn {
+    opacity: 1;
+}
+
+.zoom-btn {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: all var(--duration-fast) var(--ease);
+    backdrop-filter: blur(10px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.zoom-btn:hover {
+    background: white;
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: scale(1.05);
+}
+
+.page-btn {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    color: var(--text-primary);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all var(--duration-fast) var(--ease);
+}
+
+.page-btn:hover:not(:disabled) {
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+}
+
+.page-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clear-all-btn {
+    background: none;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: var(--error);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all var(--duration-fast) var(--ease);
+}
+
+.clear-all-btn:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--error);
+}

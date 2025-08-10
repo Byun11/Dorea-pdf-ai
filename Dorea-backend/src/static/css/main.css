@@ -1,0 +1,238 @@
+/* =====================================================
+   Dorea Main CSS - Modular Architecture Entry Point
+   ===================================================== */
+
+/* Base Styles */
+@import url('./base/variables.css');
+@import url('./base/reset.css');
+@import url('./base/common.css');
+
+/* Component Styles */
+@import url('./components/buttons.css');
+@import url('./components/forms.css');
+
+/* Page Styles */
+@import url('./pages/index.css');
+
+/* =====================================================
+   모던 랜딩 오버레이 - 기존 디자인 시스템 기반
+   ===================================================== */
+
+.landing-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1000;
+    background: var(--bg-primary);
+    transition: opacity 0.3s var(--ease), visibility 0.3s var(--ease);
+}
+
+.landing-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.landing-container {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8);
+}
+
+.landing-content {
+    max-width: 500px;
+    width: 100%;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+}
+
+/* 아이콘 */
+.landing-icon {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-4);
+}
+
+.landing-icon svg {
+    color: var(--primary);
+    opacity: 0.8;
+}
+
+/* 텍스트 */
+.landing-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.landing-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.landing-description {
+    font-size: var(--font-lg);
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* 업로드 영역 */
+.landing-upload {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+}
+
+.upload-area {
+    padding: var(--space-8) var(--space-6);
+    border: 2px dashed var(--border-secondary);
+    border-radius: var(--radius-xl);
+    background: var(--bg-secondary);
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-4);
+}
+
+.upload-area:hover {
+    border-color: var(--primary);
+    background: var(--bg-tertiary);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.upload-icon {
+    width: 48px;
+    height: 48px;
+    background: var(--primary);
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.upload-text {
+    font-size: var(--font-base);
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.upload-hint {
+    font-size: var(--font-sm);
+    color: var(--text-tertiary);
+}
+
+/* 구분선 */
+.upload-divider {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: var(--space-2) 0;
+}
+
+.upload-divider::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--border-primary);
+}
+
+.upload-divider span {
+    background: var(--bg-primary);
+    padding: 0 var(--space-4);
+    color: var(--text-tertiary);
+    font-size: var(--font-sm);
+}
+
+/* 버튼 */
+.upload-button {
+    padding: var(--space-4) var(--space-6);
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-base);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--duration-normal) var(--ease);
+    box-shadow: var(--shadow-md);
+}
+
+.upload-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+}
+
+.upload-button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+/* 다크 모드 */
+[data-theme="dark"] .upload-area {
+    border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .upload-area:hover {
+    border-color: var(--primary-light);
+    background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .upload-button:hover {
+    background: var(--primary-light);
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .landing-container {
+        padding: var(--space-6);
+    }
+    
+    .landing-content {
+        gap: var(--space-6);
+    }
+    
+    .landing-title {
+        font-size: 2rem;
+    }
+    
+    .landing-description {
+        font-size: var(--font-base);
+    }
+    
+    .landing-icon svg {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .upload-area {
+        padding: var(--space-6) var(--space-4);
+    }
+}
+
+/* =====================================================
+   AI 패널 숨김/표시 제어
+   ===================================================== */
+
+.ai-panel.hidden {
+    display: none !important;
+}
