@@ -193,12 +193,13 @@ function setupLandingOverlayEvents() {
             uploadArea.style.transform = 'translateY(0)';
             
             const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
+            console.log('🎯 드래그앤드롭 파일들:', files);
             if (files.length > 0) {
-                hideLandingOverlay();
-                // 파일 처리를 위해 fileManager에 전달
-                if (window.FileManager && window.FileManager.handleMultipleFiles) {
-                    window.FileManager.handleMultipleFiles(files);
-                }
+                console.log('📂 PDF 파일들 감지됨, 업로드 모달 표시 시작');
+                // 랜딩 오버레이는 숨기지 않고 모달만 표시
+                FileManager.handleMultipleFiles(files);
+            } else {
+                console.log('❌ PDF 파일이 없음');
             }
         });
     }
@@ -277,7 +278,8 @@ window.goHome = goHome;
 window.fileManager = {
     selectFile: FileManager.selectFile,
     deleteFile: FileManager.deleteFile,
-    cancelFile: FileManager.cancelFile
+    cancelFile: FileManager.cancelFile,
+    retryFile: FileManager.retryFile
 };
 
 // 세그먼트 관련 함수들 (일부는 직접 호출됨)

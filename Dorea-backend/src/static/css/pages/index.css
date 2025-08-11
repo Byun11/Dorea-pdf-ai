@@ -399,6 +399,38 @@ body {
     transform: scale(1.1);
 }
 
+/* 파일 재처리 버튼 */
+.file-retry-btn {
+    background: #f59e0b; /* 주황색 - 재처리를 나타내는 색상 */
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--duration-normal) var(--ease);
+    flex-shrink: 0;
+    opacity: 0.8;
+    margin-right: 4px;
+}
+
+.file-retry-btn:hover {
+    background: #d97706; /* 호버 시 더 진한 주황색 */
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* 오류 상태 파일의 액션 버튼들 간격 */
+.file-item.error .file-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
 /* PDF 컨테이너 */
 .pdf-container {
     flex: 1;
