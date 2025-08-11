@@ -2,7 +2,7 @@
   <img src="assets/images/logo.png" alt="Dorea Logo" width="100"/>
   <h1>Dorea PDF AI</h1>
   <p>
-    <strong>지능형 PDF 문서 분석 플랫폼</strong>
+    <strong>PDF 문서 분석 및 AI 대화 시스템</strong>
   </p>
   <p>
     <img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg">
@@ -13,54 +13,50 @@
 
 ## 개요
 
-Dorea PDF AI는 고급 레이아웃 분석, OCR 기술, 그리고 대화형 AI를 결합하여 PDF 문서와 상호작용하는 방식을 변화시킵니다. 문서의 원하는 부분을 클릭하고 내용에 대한 지능적인 대화를 시작해보세요.
+PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특정 부분을 클릭하여 AI와 대화할 수 있는 시스템입니다.
 
-### 메인 인터페이스
-<div align="center">
-  <img src="assets/images/preview-main.png" alt="Dorea Main Interface" width="800"/>
-</div>
+<table>
+<tr>
+<td width="50%" align="center">
 
-### AI 채팅 기능
-<div align="center">
-  <img src="assets/images/preview-chat.png" alt="Dorea Chat Feature" width="800"/>
-</div>
+### 메인 화면
+<img src="assets/images/preview-main.png" alt="메인 인터페이스" width="400"/>
 
-## ✨ 주요 기능
+</td>
+<td width="50%" align="center">
 
-### 📄 **문서 지능화**
-- PDF 레이아웃 감지
-- 다국어 OCR 지원  
-- 스마트 콘텐츠 추출
-- 표 및 이미지 인식
+### AI 채팅 화면
+<img src="assets/images/preview-chat.png" alt="AI 채팅" width="400"/>
 
-### 🤖 **AI 대화**
-- OpenAI GPT 통합
-- 로컬 LLM 지원 (Ollama)
-- 대화형 문서 쿼리
-- 실시간 응답 생성
+</td>
+</tr>
+</table>
 
-## 🚀 빠른 시작
+## 주요 기능
+
+- PDF 레이아웃 자동 분석 (표, 이미지, 텍스트 구분)
+- 다국어 OCR 지원 (한국어, 영어, 일본어, 중국어)
+- 문서 영역 클릭으로 AI 대화 시작
+- OpenAI GPT 및 로컬 LLM(Ollama) 지원
+- 실시간 스트리밍 응답
+- 대화 기록 저장
+
+## 설치 및 실행
 
 ### 시스템 요구사항
-- [Docker Desktop](https://docs.docker.com/get-docker/) 4.0+
+- Docker Desktop 4.0+
 - 8GB+ RAM (16GB 권장)
 - 10GB+ 디스크 공간
 
-### 설치 방법
-
-#### 방법 1: 원클릭 설치 (Windows)
+### Windows 원클릭 설치
 ```cmd
 git clone https://github.com/Byun11/Dorea-pdf-ai.git
 cd Dorea-pdf-ai
 Dorea.bat
 ```
 
-#### 방법 2: Docker Compose
+### Docker Compose 실행
 ```bash
-# 저장소 복제
-git clone https://github.com/Byun11/Dorea-pdf-ai.git
-cd Dorea-pdf-ai
-
 # CPU 모드
 docker compose up --build
 
@@ -68,38 +64,67 @@ docker compose up --build
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
 
+### 접속 주소
+- 메인 앱: http://localhost:8000
+- API 문서: http://localhost:8000/docs
 
-## 📚 사용법
+## 시스템 구조
 
-1. **문서 업로드**: PDF를 인터페이스에 드래그 앤 드롭
-2. **AI 분석**: 자동 레이아웃 및 콘텐츠 분석
-3. **대화형 채팅**: 원하는 영역을 클릭하고 대화
+```
+웹 프론트엔드 (8000) → FastAPI 백엔드 (8000) → HURIDOCS (8001) + Ollama (11434)
+```
+
+- **웹 프론트엔드**: HTML/CSS/JavaScript 기반 반응형 UI
+- **FastAPI 백엔드**: 파일 업로드, 사용자 인증, API 서버
+- **HURIDOCS**: PDF 레이아웃 분석 및 OCR 처리
+- **Ollama**: 로컬 LLM 추론 엔진
+
+## 사용 방법
+
+1. 웹 브라우저에서 http://localhost:8000 접속
+2. PDF 파일을 드래그 앤 드롭으로 업로드
+3. 자동 분석 완료 후 문서 영역 클릭
+4. AI와 대화 시작
 
 
-## 📄 라이선스
+### 로그 확인
+```bash
+# 전체 서비스 로그
+docker compose logs -f
 
-이 프로젝트는 Apache License 2.0에 따라 라이선스가 부여됩니다. 자세한 내용은 [LICENSE.md](docs/LICENSE.md) 파일을 참조하세요.
+# 개별 서비스 로그
+docker compose logs -f pdf-ai
+docker compose logs -f huridocs
+docker compose logs -f ollama
+```
 
-### 오픈소스 라이브러리
+## 라이선스
 
-이 프로젝트는 다음 오픈소스 컴포넌트를 사용합니다:
+Apache License 2.0
 
-- **[HURIDOCS](https://github.com/huridocs/pdf-document-layout-analysis)** - PDF 문서 레이아웃 분석 (Apache 2.0)
-- **[Ollama](https://github.com/ollama/ollama)** - 로컬 LLM 추론 엔진 (MIT)  
+### 사용된 오픈소스
+
+- **[HURIDOCS](https://github.com/huridocs/pdf-document-layout-analysis)** - PDF 레이아웃 분석 (Apache 2.0)
+- **[Ollama](https://github.com/ollama/ollama)** - LLM 추론 엔진 (MIT)
 - **[FastAPI](https://github.com/tiangolo/fastapi)** - 웹 프레임워크 (MIT)
 
-전체 라이선스 정보는 [NOTICE](docs/NOTICE) 파일을 참조하세요.
+### 관련 프로젝트
 
-## 🆘 지원
+- **[SpectraBench](https://github.com/gwleee/SpectraBench)** - LLM 벤치마킹 스케줄링 시스템
+- **[KONI](https://github.com/KISTI-AI/KONI)** - KISTI 과학기술정보 특화 언어모델
+- **[KISTI-MCP](https://github.com/KISTI-AI/KISTI-MCP)** - KISTI Model Context Protocol 서버
 
-- 🐛 **버그 리포트**: [이슈 생성](https://github.com/Byun11/Dorea-pdf-ai/issues)
-- 📧 **연락처**: [9722jayon@gmail.com](mailto:9722jayon@gmail.com)
+## 지원
+
+- 버그 리포트: [GitHub Issues](https://github.com/Byun11/Dorea-pdf-ai/issues)
+- 이메일: [9722jayon@gmail.com](mailto:9722jayon@gmail.com)
 
 ---
 
 <div align="center">
-  <img src="assets/images/AIlogo.png" alt="KISTI AI Platform Team" width="40" style="margin-right: 10px;"/>
-  <strong>KISTI 초거대 AI 연구센터 / AI 플랫폼팀에서 ❤️를 담아 제작</strong>
+  <img src="assets/images/AIlogo.png" alt="KISTI AI Platform Team" width="40"/>
+  <br>
+  <strong>KISTI 초거대 AI 연구센터 / AI 플랫폼팀</strong>
   <br>
   <sub>© 2025 KISTI Large-scale AI Research Center / AI Platform Team. All rights reserved.</sub>
 </div>
