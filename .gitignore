@@ -1,0 +1,58 @@
+# 데이터베이스 파일
+DATABASE/pdf_ai_system.db
+DATABASE/files/
+
+# 환경 설정
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Docker
+.docker/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+
+# Ollama data (모델 파일들은 용량이 크므로 제외)
+ollama_data/
+
+# Node modules (만약 프론트엔드에 사용한다면)
+node_modules/

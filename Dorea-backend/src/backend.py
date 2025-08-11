@@ -25,6 +25,19 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import uuid
 import re
+# PDF 텍스트 검사는 클라이언트에서 PDF.js로 처리
+
+
+# UUID 검증 함수
+def is_valid_uuid(uuid_to_test, version=4):
+    try:
+        uuid_obj = uuid.UUID(uuid_to_test, version=version)
+        return str(uuid_obj) == uuid_to_test
+    except ValueError:
+        return False
+
+
+# PDF 텍스트 검사는 클라이언트에서 처리 (PDF.js 사용)
 
 
 # OpenAI API 키 설정
@@ -60,6 +73,41 @@ app.add_middleware(
 # 파일 저장 경로
 FILES_DIR = Path("/app/database/files/users")
 FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+# PDF 텍스트 검사 함수
+def check_pdf_has_text(file_path: str) -> dict:
+    """PDF 파일에 텍스트가 있는지 검사"""
+    try:
+        doc = fitz.open(file_path)
+        total_text_length = 0
+        total_pages = len(doc)
+        
+        for page_num in range(min(3, total_pages)):  # 처음 3페이지만 검사
+            page = doc[page_num]
+            text = page.get_text().strip()
+            total_text_length += len(text)
+        
+        doc.close()
+        
+        # 텍스트 임계값 설정 (페이지당 평균 50자 이상이면 텍스트 PDF로 판단)
+        threshold = 50 * min(3, total_pages)
+        has_text = total_text_length > threshold
+        
+        return {
+            "has_text": has_text,
+            "text_length": total_text_length,
+            "pages_checked": min(3, total_pages),
+            "confidence": "high" if total_text_length > threshold * 2 else "medium" if has_text else "low"
+        }
+    
+    except Exception as e:
+        print(f"❌ PDF 텍스트 검사 오류: {e}")
+        return {
+            "has_text": False,
+            "text_length": 0,
+            "pages_checked": 0,
+            "confidence": "error"
+        }
 
 # UUID 검증 함수
 def is_valid_uuid(uuid_string: str) -> bool:
@@ -1203,6 +1251,42 @@ async def delete_user_data(
         raise HTTPException(status_code=500, detail=f"데이터 삭제 중 오류: {str(e)}")
 
 
+# PDF 텍스트 검사 API
+@app.post("/check-pdf-text")
+async def check_pdf_text_endpoint(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """업로드된 PDF 파일에 텍스트가 있는지 검사"""
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="PDF 파일만 업로드 가능합니다")
+    
+    try:
+        # 임시 파일로 저장
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_path = temp_file.name
+        
+        # 텍스트 검사
+        result = check_pdf_has_text(temp_path)
+        
+        # 임시 파일 삭제
+        os.unlink(temp_path)
+        
+        return {
+            "filename": file.filename,
+            "file_size": len(content),
+            **result
+        }
+        
+    except Exception as e:
+        print(f"❌ PDF 텍스트 검사 API 오류: {e}")
+        if 'temp_path' in locals() and os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise HTTPException(status_code=500, detail=f"PDF 텍스트 검사 실패: {str(e)}")
+
 # backend.py 파일에 추가할 헬스체크 엔드포인트
 
 @app.get("/health")
@@ -1235,6 +1319,7 @@ async def process_segments(
     file: UploadFile = File(...), 
     language: str = Form("ko"),
     file_id: str = Form(...),  # UUID 받기
+    use_ocr: bool = Form(False),  # OCR 사용 여부 (기본값: False)
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1297,10 +1382,13 @@ async def process_segments(
         
         print(f"✅ 파일 저장 완료: {temp_path}")
         
-        # 5. OCR 처리
-        ocr_path = file_dir / f"ocr_{file.filename}"
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+        # 5. OCR 처리 여부에 따른 분기
+        async with httpx.AsyncClient(timeout=httpx.Timeout(600.0)) as client:
+            if use_ocr:
+                # 5-1. OCR 처리 후 세그먼트 추출
+                print("🔍 OCR 분석 모드로 처리 중...")
+                ocr_path = file_dir / f"ocr_{file.filename}"
+                
                 with open(temp_path, "rb") as f:
                     response = await client.post(
                         f"{DOCKER_API_URL}/ocr",
@@ -1317,100 +1405,89 @@ async def process_segments(
                 
                 print(f"✅ OCR 처리 완료: {ocr_path}")
                 
-                # 6. 세그먼트 추출
-                try:
-                    with open(ocr_path, "rb") as f:
-                        segments_response = await client.post(
-                            f"{DOCKER_API_URL}/",
-                            files={"file": (file.filename, f, "application/pdf")},
-                        )
-                    
-                    formatted_segments = []
-                    if segments_response.status_code == 200:
-                        segments_data = segments_response.json()
-                        
-                        for segment in segments_data:
-                            formatted_segment = {
-                                "type": segment.get("type", "text"),
-                                "text": segment.get("text", ""),
-                                "page_number": segment.get("page_number", 1),
-                                "left": segment.get("left", 0),
-                                "top": segment.get("top", 0),
-                                "width": segment.get("width", 0),
-                                "height": segment.get("height", 0),
-                                "page_width": segment.get("page_width", 1),
-                                "page_height": segment.get("page_height", 1)
-                            }
-                            formatted_segments.append(formatted_segment)
-                        
-                        # 세그먼트 JSON 파일 저장
-                        segments_path = file_dir / f"segments_{file.filename}.json"
-                        with open(segments_path, "w", encoding="utf-8") as f:
-                            json.dump(formatted_segments, f, ensure_ascii=False, indent=2)
-                        
-                        print(f"✅ 세그먼트 추출 완료: {len(formatted_segments)}개")
-                    
-                    # 7. DB 최종 업데이트 (완료 상태)
-                    db_file.status = "completed"
-                    db_file.processed_at = func.now()
-                    db_file.segments_data = formatted_segments
-                    db.commit()
-                    
-                    # 8. 첫 번째 채팅 세션 자동 생성
-                    try:
-                        first_session = ChatSession(
-                            user_id=current_user.id,
-                            file_id=db_file.id,
-                            session_name=f"{file.filename} 채팅"
-                        )
-                        db.add(first_session)
-                        db.commit()
-                        db.refresh(first_session)
-                        print(f"✅ 첫 번째 채팅 세션 자동 생성: {first_session.id}")
-                    except Exception as session_error:
-                        print(f"⚠️ 세션 생성 오류 (파일 처리는 성공): {session_error}")
-                    
-                    return {
-                        "file_id": db_file.id,  # 이미 UUID
-                        "message": "처리 완료",
-                        "segments": formatted_segments
+                # OCR된 파일로 세그먼트 추출
+                with open(ocr_path, "rb") as f:
+                    segments_response = await client.post(
+                        f"{DOCKER_API_URL}/",
+                        files={"file": (file.filename, f, "application/pdf")},
+                        data={"fast": "false"}
+                    )
+            else:
+                # 5-2. OCR 없이 직접 세그먼트 추출
+                print("⚡ 빠른 분석 모드로 처리 중...")
+                
+                # 원본 파일로 바로 세그먼트 추출
+                with open(temp_path, "rb") as f:
+                    segments_response = await client.post(
+                        f"{DOCKER_API_URL}/",
+                        files={"file": (file.filename, f, "application/pdf")},
+                        data={"fast": "false"}
+                    )
+            
+            # 6. 세그먼트 처리 (공통)
+            formatted_segments = []
+            if segments_response.status_code == 200:
+                segments_data = segments_response.json()
+                
+                for segment in segments_data:
+                    formatted_segment = {
+                        "type": segment.get("type", "text"),
+                        "text": segment.get("text", ""),
+                        "page_number": segment.get("page_number", 1),
+                        "left": segment.get("left", 0),
+                        "top": segment.get("top", 0),
+                        "width": segment.get("width", 0),
+                        "height": segment.get("height", 0),
+                        "page_width": segment.get("page_width", 1),
+                        "page_height": segment.get("page_height", 1)
                     }
-                    
-                except Exception as e:
-                    print(f"❌ 세그먼트 추출 오류: {e}")
-                    # 세그먼트 실패해도 OCR은 성공
-                    db_file.status = "completed"
-                    db_file.segments_data = []
-                    db.commit()
-                    
-                    # 첫 번째 채팅 세션 자동 생성 (세그먼트 실패해도)
-                    try:
-                        first_session = ChatSession(
-                            user_id=current_user.id,
-                            file_id=db_file.id,
-                            session_name=f"{file.filename} 채팅"
-                        )
-                        db.add(first_session)
-                        db.commit()
-                        db.refresh(first_session)
-                        print(f"✅ 첫 번째 채팅 세션 자동 생성: {first_session.id}")
-                    except Exception as session_error:
-                        print(f"⚠️ 세션 생성 오류: {session_error}")
-                    
-                    return {
-                        "file_id": db_file.id,
-                        "message": "OCR 완료, 세그먼트 추출 실패",
-                        "segments": []
-                    }
-                    
-        except Exception as e:
-            print(f"❌ OCR 처리 오류: {e}")
-            raise HTTPException(status_code=500, detail=f"OCR 처리 오류: {str(e)}")
+                    formatted_segments.append(formatted_segment)
+                
+                # 세그먼트 JSON 파일 저장
+                segments_path = file_dir / f"segments_{file.filename}.json"
+                with open(segments_path, "w", encoding="utf-8") as f:
+                    json.dump(formatted_segments, f, ensure_ascii=False, indent=2)
+                
+                print(f"✅ 세그먼트 추출 완료: {len(formatted_segments)}개")
+            
+            # 7. DB 최종 업데이트 (완료 상태)
+            db_file.status = "completed"
+            db_file.processed_at = func.now()
+            db_file.segments_data = formatted_segments
+            db.commit()
+            
+            # 8. 첫 번째 채팅 세션 자동 생성
+            try:
+                first_session = ChatSession(
+                    user_id=current_user.id,
+                    file_id=db_file.id,
+                    session_name=f"{file.filename} 채팅"
+                )
+                db.add(first_session)
+                db.commit()
+                db.refresh(first_session)
+                print(f"✅ 첫 번째 채팅 세션 자동 생성: {first_session.id}")
+            except Exception as session_error:
+                print(f"⚠️ 세션 생성 오류 (파일 처리는 성공): {session_error}")
+            
+            return {
+                "file_id": db_file.id,  # 이미 UUID
+                "message": "처리 완료",
+                "segments": formatted_segments,
+                "use_ocr": use_ocr  # OCR 사용 여부도 응답에 포함
+            }
     
     except HTTPException:
         raise
     except Exception as e:
         print(f"❌ 전체 처리 오류: {e}")
+        # 처리 실패 시 DB 업데이트
+        if db_file:
+            try:
+                db_file.status = "failed"
+                db.commit()
+            except:
+                db.rollback()
         raise HTTPException(status_code=500, detail=f"처리 중 오류: {str(e)}")
 
 # 파일 처리 취소 엔드포인트

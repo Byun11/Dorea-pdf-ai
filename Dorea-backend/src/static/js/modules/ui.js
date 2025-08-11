@@ -2,8 +2,22 @@
    Dorea UI Module - User Interface Management
    ===================================================== */
 
-import { showNotification } from './utils.js';
+import { showNotification, formatFileSize } from './utils.js';
 import { updateZoomControlsPosition } from './pdfViewer.js';
+
+// PDF.js 동적 import (클라이언트 사이드 텍스트 검사용)
+let pdfjsLib = null;
+async function loadPdfJs() {
+    if (!pdfjsLib) {
+        try {
+            pdfjsLib = await import('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.min.mjs');
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+        } catch (error) {
+            console.error('PDF.js 로드 실패:', error);
+        }
+    }
+    return pdfjsLib;
+}
 
 // UI 상태 변수
 let sidebarCollapsed = false;
@@ -213,67 +227,7 @@ export function hideModal(modalId) {
     }
 }
 
-// 업로드 모달 표시 (애니메이션 적용)
-export function showUploadModal(files) {
-    const uploadModal = document.getElementById('uploadModal');
-    const uploadFileList = document.getElementById('uploadFileList');
-    
-    if (!uploadModal || !uploadFileList) return;
-    
-    uploadFileList.innerHTML = '';
-
-    if (files && files.length > 0) {
-        files.forEach((file, index) => {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'upload-file-item';
-            fileItem.innerHTML = `
-                <div class="file-info">
-                    <div class="file-icon">📄</div>
-                    <div class="file-details">
-                        <h4>${file.name}</h4>
-                        <div class="file-size">${formatFileSize(file.size)}</div>
-                    </div>
-                </div>
-                <select class="language-select file-language-select" data-file-index="${index}">
-                    <option value="ko">한국어</option>
-                    <option value="en">English</option>
-                    <option value="ja">日本語</option>
-                    <option value="zh">中文</option>
-                    <option value="fr">Français</option>
-                    <option value="de">Deutsch</option>
-                    <option value="es">Español</option>
-                    <option value="ru">Русский</option>
-                    <option value="it">Italiano</option>
-                    <option value="pt">Português</option>
-                    <option value="ar">العربية</option>
-                    <option value="hi">हिन्दी</option>
-                </select>
-            `;
-            uploadFileList.appendChild(fileItem);
-        });
-        window.pendingFiles = files;
-    }
-
-    // 간단히 표시
-    uploadModal.style.display = 'flex';
-}
-
-// 업로드 모달 닫기
-export function closeUploadModal() {
-    const uploadModal = document.getElementById('uploadModal');
-    if (uploadModal) {
-        uploadModal.style.display = 'none';
-    }
-    window.pendingFiles = null;
-}
-
-// 파일 크기 포맷팅 (로컬 함수)
-function formatFileSize(bytes) {
-    if (!bytes) return '';
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(1024));
-    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-}
+// 기존 업로드 모달 함수들 제거됨 - 새로운 클라이언트 PDF 검사 기능으로 교체
 
 // 로그인 페이지 UI 함수들
 export function showLoading(show) {
@@ -464,9 +418,166 @@ export function closeUploadModalAnimated() {
     closeUploadModal();
 }
 
+// ============================================
+// 업로드 모달 관리
+// ============================================
+
+// 업로드 모달 표시
+export function showUploadModal(files) {
+    if (!files || files.length === 0) return;
+    
+    window.pendingFiles = files;
+    const modal = document.getElementById('uploadModal');
+    const fileList = document.getElementById('uploadFileList');
+    
+    if (!modal || !fileList) return;
+    
+    // 파일 리스트 생성
+    fileList.innerHTML = Array.from(files).map((file, index) => `
+        <div class="upload-file-item" data-file-index="${index}">
+            <div class="file-info">
+                <div class="file-icon">PDF</div>
+                <div class="file-details">
+                    <div class="file-name">${file.name}</div>
+                    <div class="file-size">${formatFileSize(file.size)}</div>
+                    
+                    <div class="text-check-status checking" id="textStatus-${index}">
+                        🔍 PDF 텍스트 검사 중...
+                    </div>
+                    
+                    <div class="ocr-option" id="ocrOption-${index}" style="display: none;">
+                        <label class="ocr-checkbox">
+                            <input type="checkbox" id="ocrCheck-${index}" onchange="updateOcrSetting(${index}, this.checked)">
+                            <span id="ocrLabel-${index}">OCR 분석 (선택사항)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <select class="language-select" id="language-${index}">
+                <option value="ko">한국어</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="zh">中文</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="es">Español</option>
+            </select>
+        </div>
+    `).join('');
+    
+    // 각 파일에 대해 텍스트 검사 시작
+    Array.from(files).forEach((file, index) => {
+        checkPdfTextClient(file, index);
+    });
+    
+    // Gemini 조언: CSS 우선순위 문제 해결
+    modal.style.setProperty('display', 'flex', 'important');
+    modal.style.setProperty('position', 'fixed', 'important');
+    modal.style.setProperty('top', '0', 'important');
+    modal.style.setProperty('left', '0', 'important');
+    modal.style.setProperty('right', '0', 'important');
+    modal.style.setProperty('bottom', '0', 'important');
+    modal.style.setProperty('z-index', '99999', 'important');
+    modal.style.setProperty('background', 'rgba(0, 0, 0, 0.5)', 'important');
+    modal.style.setProperty('align-items', 'center', 'important');
+    modal.style.setProperty('justify-content', 'center', 'important');
+    
+    console.log('모달 강제 표시 완료');
+}
+
+// 업로드 모달 닫기
+export function closeUploadModal() {
+    const modal = document.getElementById('uploadModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+    window.pendingFiles = null;
+}
+
+// 클라이언트 사이드 PDF 텍스트 검사
+async function checkPdfTextClient(file, index) {
+    const statusEl = document.getElementById(`textStatus-${index}`);
+    const ocrOptionEl = document.getElementById(`ocrOption-${index}`);
+    const ocrCheckEl = document.getElementById(`ocrCheck-${index}`);
+    const ocrLabelEl = document.getElementById(`ocrLabel-${index}`);
+    
+    try {
+        // PDF.js 로드
+        const pdfjs = await loadPdfJs();
+        if (!pdfjs) {
+            throw new Error('PDF.js 로드 실패');
+        }
+        
+        // PDF.js를 사용하여 클라이언트에서 텍스트 검사
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjs.getDocument(arrayBuffer).promise;
+        
+        let totalText = '';
+        const maxPages = Math.min(3, pdf.numPages); // 최대 3페이지만 검사
+        
+        for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+            const page = await pdf.getPage(pageNum);
+            const textContent = await page.getTextContent();
+            const pageText = textContent.items.map(item => item.str).join(' ');
+            totalText += pageText;
+        }
+        
+        const hasText = totalText.trim().length > 150; // 150자 이상이면 텍스트 있음
+        
+        // 파일 객체에 검사 결과 저장
+        window.pendingFiles[index].hasText = hasText;
+        window.pendingFiles[index].useOcr = !hasText; // 텍스트 없으면 OCR 기본 ON
+        
+        // UI 업데이트
+        if (hasText) {
+            statusEl.className = 'text-check-status has-text';
+            statusEl.innerHTML = '✅ 텍스트 PDF 감지됨';
+            
+            ocrCheckEl.checked = false;
+            ocrCheckEl.disabled = false;
+            ocrLabelEl.textContent = 'OCR 분석 (선택사항)';
+        } else {
+            statusEl.className = 'text-check-status no-text';
+            statusEl.innerHTML = '❌ 텍스트가 없어 OCR 분석이 필요합니다';
+            
+            ocrCheckEl.checked = true;
+            ocrCheckEl.disabled = true;
+            ocrLabelEl.textContent = 'OCR 분석 (필수)';
+        }
+        
+        ocrOptionEl.style.display = 'flex';
+        
+    } catch (error) {
+        console.error('PDF 텍스트 검사 오류:', error);
+        statusEl.className = 'text-check-status no-text';
+        statusEl.innerHTML = '⚠️ 검사 실패 - OCR 분석 권장';
+        
+        // 오류 시 OCR을 기본으로 설정
+        window.pendingFiles[index].hasText = false;
+        window.pendingFiles[index].useOcr = true;
+        
+        ocrCheckEl.checked = true;
+        ocrCheckEl.disabled = false;
+        ocrLabelEl.textContent = 'OCR 분석 (권장)';
+        ocrOptionEl.style.display = 'flex';
+    }
+}
+
+// OCR 설정 업데이트
+function updateOcrSetting(index, useOcr) {
+    if (window.pendingFiles && window.pendingFiles[index]) {
+        window.pendingFiles[index].useOcr = useOcr;
+        console.log(`파일 ${index} OCR 설정: ${useOcr ? 'ON' : 'OFF'}`);
+    }
+}
+
+// formatFileSize는 utils.js에서 import함
+
 // 글로벌 함수로 노출 (HTML에서 직접 호출용)
 window.showUploadModal = showUploadModal;
 window.closeUploadModal = closeUploadModal;
+window.updateOcrSetting = updateOcrSetting;
 window.toggleSidebar = toggleSidebar;
 window.toggleTheme = toggleTheme;
 window.triggerSegmentResync = triggerSegmentResync;

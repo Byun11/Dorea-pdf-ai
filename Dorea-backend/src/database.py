@@ -9,8 +9,14 @@ import hashlib
 import os
 
 # 데이터베이스 설정
-# 상위 디렉토리의 DATABASE 폴더를 사용 (Docker와 로컬 모두 호환)
-DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "DATABASE")
+# Docker 환경에서는 /app/DATABASE, 로컬에서는 상위 디렉토리의 DATABASE 사용
+if os.path.exists("/app/DATABASE"):
+    # Docker 환경
+    DB_DIR = "/app/DATABASE"
+else:
+    # 로컬 환경 - 상위 디렉토리의 DATABASE 폴더 사용
+    DB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "DATABASE")
+
 os.makedirs(DB_DIR, exist_ok=True)
 DATABASE_URL = f"sqlite:///{os.path.join(DB_DIR, 'pdf_ai_system.db')}"
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})

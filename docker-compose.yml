@@ -21,7 +21,7 @@ services:
       - DOCKER_API_URL=http://huridocs:5060
       - OLLAMA_API_URL=http://ollama:11434
     volumes:
-      - ./DATABASE:/app/database
+      - ./DATABASE:/app/DATABASE
       - ./Dorea-backend/src:/app/src
     depends_on:
       - huridocs

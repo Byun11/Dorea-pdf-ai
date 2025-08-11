@@ -111,6 +111,7 @@ export function getLanguageName(code) {
 // 상태 텍스트 반환
 export function getStatusText(status) {
     const statusMap = {
+        'checking': '텍스트 검사 중...',
         'waiting': '대기중',
         'processing': '처리중...',
         'completed': '완료',
