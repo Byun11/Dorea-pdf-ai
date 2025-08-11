@@ -241,52 +241,6 @@
         </div>
     </div>
 
-    <!-- 다중 업로드 모달 -->
-    <div id="uploadModal" class="modal">
-        <div class="modal-content" style="max-width: 80vw; max-height: 80vh; width: auto; height: auto;">
-            <div class="modal-header">
-                <h2>📄 파일 업로드 설정</h2>
-                <span class="close" onclick="closeUploadModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <!-- 언어 일괄 설정 섹션 -->
-                <div class="bulk-language-section">
-                    <div class="bulk-language-header">
-                        <div class="icon">🌐</div>
-                        <h3>언어 일괄 설정</h3>
-                    </div>
-                    <div class="bulk-language-controls">
-                        <div class="language-select-wrapper">
-                            <label for="bulkLanguageSelect">모든 파일의 언어를 일괄 설정:</label>
-                            <select id="bulkLanguageSelect" class="bulk-language-select">
-                                <option value="">언어 선택</option>
-                                <option value="ko">한국어</option>
-                                <option value="en">English</option>
-                                <option value="ja">日本語</option>
-                                <option value="zh">中文</option>
-                                <option value="es">Español</option>
-                                <option value="fr">Français</option>
-                                <option value="de">Deutsch</option>
-                                <option value="ru">Русский</option>
-                                <option value="it">Italiano</option>
-                                <option value="pt">Português</option>
-                                <option value="ar">العربية</option>
-                                <option value="hi">हिन्दी</option>
-                            </select>
-                        </div>
-                        <button id="applyBulkLanguageBtn" class="apply-bulk-language-btn" onclick="applyBulkLanguage()">
-                            일괄 적용
-                        </button>
-                    </div>
-                </div>
-                
-                <div id="uploadFileList"></div>
-                <button id="processFilesBtn" class="process-btn" onclick="processFiles()">
-                    파일 처리 시작
-                </button>
-            </div>
-        </div>
-    </div>
 
     <!-- 모델 관리 모달 -->
     <div id="settingsModal" class="modal">
@@ -493,6 +447,56 @@
         </div>
     </div>
 
+    <!-- 업로드 모달 -->
+    <div class="modal-overlay" id="uploadModal" style="display: none;">
+        <div class="modal-content upload-modal">
+            <div class="modal-header">
+                <h3>파일 업로드</h3>
+                <button class="modal-close" onclick="closeUploadModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <!-- 언어 일괄 설정 섹션 -->
+                <div class="bulk-language-section">
+                    <div class="bulk-language-header">
+                        <div class="icon">🌐</div>
+                        <h3>언어 일괄 설정</h3>
+                    </div>
+                    <div class="bulk-language-controls">
+                        <div class="language-select-wrapper">
+                            <label for="bulkLanguageSelect">모든 파일의 언어를 일괄 설정:</label>
+                            <select id="bulkLanguageSelect" class="bulk-language-select">
+                                <option value="">언어 선택</option>
+                                <option value="ko">한국어</option>
+                                <option value="en">English</option>
+                                <option value="ja">日본語</option>
+                                <option value="zh">中文</option>
+                                <option value="es">Español</option>
+                                <option value="fr">Français</option>
+                                <option value="de">Deutsch</option>
+                                <option value="ru">Русский</option>
+                                <option value="it">Italiano</option>
+                                <option value="pt">Português</option>
+                                <option value="ar">العربية</option>
+                                <option value="hi">हिन्दी</option>
+                            </select>
+                        </div>
+                        <button id="applyBulkLanguageBtn" class="apply-bulk-language-btn" onclick="applyBulkLanguage()">
+                            일괄 적용
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="uploadFileList" class="upload-file-list">
+                    <!-- 파일 목록이 동적으로 추가됨 -->
+                </div>
+                <div class="upload-actions">
+                    <button class="btn btn-secondary" onclick="closeUploadModal()">취소</button>
+                    <button class="btn btn-primary" onclick="processFiles()" id="uploadBtn">업로드 시작</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 로딩 화면 -->
     <div class="loading" id="loading" style="display: none;">
         <div class="spinner"></div>
@@ -502,6 +506,7 @@
         </div>
     </div>
 
+    <!-- PDF.js는 ui.js에서 동적으로 로드됨 -->
     <script type="module" src="/static/js/index.js"></script>
 </body>
 

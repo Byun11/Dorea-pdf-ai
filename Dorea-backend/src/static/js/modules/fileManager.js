@@ -118,15 +118,23 @@ function handleMultipleFiles(files) {
 }
 
 // 파일 처리 시작
-export function processFiles() {
+export async function processFiles() {
     const files = window.pendingFiles;
     if (!files) return;
 
     const languageSelects = document.querySelectorAll('.language-select');
-    files.forEach((file, index) => {
+    
+    // 파일들을 순차적으로 처리
+    for (let index = 0; index < files.length; index++) {
+        const file = files[index];
         const language = languageSelects[index].value;
-        addFileToQueue(file, language);
-    });
+        
+        // 업로드 모달에서 설정된 OCR 옵션과 텍스트 검사 결과 사용
+        const hasText = file.hasText !== undefined ? file.hasText : false;
+        const useOcr = file.useOcr !== undefined ? file.useOcr : !hasText;
+        
+        await addFileToQueue(file, language, hasText, useOcr);
+    }
 
     closeUploadModal();
     startBackgroundProcessing();
@@ -147,8 +155,9 @@ function isValidUUID(uuid) {
     return uuidRegex.test(uuid);
 }
 
-// 파일을 큐에 추가
-function addFileToQueue(file, language = 'ko') {
+
+// 파일을 큐에 추가 (업로드 모달에서 미리 검사된 정보 사용)
+async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = null) {
     const generatedId = crypto.randomUUID();
     
     // UUID 검증
@@ -163,15 +172,18 @@ function addFileToQueue(file, language = 'ko') {
         file: file,
         name: file.name,
         language: language,
-        status: 'waiting',
+        status: 'waiting', // 업로드 모달에서 이미 검사했으므로 바로 대기상태
         segments: null,
         pdfDoc: null,
-        error: null
+        error: null,
+        hasText: hasText, // 업로드 모달에서 전달받은 값 사용
+        useOcr: useOcr    // 업로드 모달에서 전달받은 값 사용
     };
 
-    console.log(`✅ 새 파일 큐에 추가 - ID: ${fileItem.id}, 이름: ${fileItem.name}`);
+    console.log(`✅ 새 파일 큐에 추가 - ID: ${fileItem.id}, 이름: ${fileItem.name}, 텍스트: ${hasText}, OCR: ${useOcr}`);
     fileQueue.push(fileItem);
     updateFileList();
+    
     return fileItem;
 }
 
@@ -231,6 +243,7 @@ function updateFileList() {
             const canSelect = file.status === 'completed';
 
             const statusEmoji = {
+                'checking': '🔍',
                 'waiting': '⏳',
                 'processing': '🔄',
                 'completed': '✅',
@@ -426,8 +439,9 @@ async function processNextFile() {
         formData.append('file', waitingFile.file);
         formData.append('language', waitingFile.language);
         formData.append('file_id', waitingFile.id); // UUID 전송
+        formData.append('use_ocr', waitingFile.useOcr.toString()); // OCR 사용 여부
 
-        console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}`);
+        console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}, OCR: ${waitingFile.useOcr ? 'ON' : 'OFF'}`);
 
         // 서버로 파일 업로드 및 처리 중
         const token = localStorage.getItem('token');
@@ -522,6 +536,7 @@ export function getCurrentFileId() {
 export function getFileQueue() {
     return fileQueue;
 }
+
 
 // Export 함수들은 index.js에서 글로벌로 노출됨
 
