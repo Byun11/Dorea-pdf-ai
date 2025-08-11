@@ -113,7 +113,8 @@ async function loadUserFiles() {
 }
 
 // 다중 파일 처리
-function handleMultipleFiles(files) {
+export function handleMultipleFiles(files) {
+    console.log('📂 다중 파일 처리 시작:', files.length + '개');
     showUploadModal(files);
 }
 
@@ -209,7 +210,7 @@ function updateFileList() {
     const totalFiles = fileQueue.length;
     const completedFiles = fileQueue.filter(f => f.status === 'completed').length;
     const processingFiles = fileQueue.filter(f => f.status === 'processing').length;
-    const errorFiles = fileQueue.filter(f => f.status === 'error').length;
+    const errorFiles = fileQueue.filter(f => f.status === 'error' || f.status === 'failed').length;
     const waitingFiles = fileQueue.filter(f => f.status === 'waiting').length;
 
     fileList.innerHTML = `
@@ -248,6 +249,7 @@ function updateFileList() {
                 'processing': '🔄',
                 'completed': '✅',
                 'error': '❌',
+                'failed': '❌',
                 'cancelled': '🚫'
             };
 
@@ -271,7 +273,10 @@ function updateFileList() {
                         <div class="file-actions">
                             ${file.status === 'processing' || file.status === 'waiting' ? 
                                 `<button class="file-cancel-btn" onclick="event.stopPropagation(); window.fileManager.cancelFile('${file.id}')" title="처리 중단하고 삭제">×</button>` : ''}
-                            ${file.status === 'completed' || file.status === 'error' || file.status === 'cancelled' ?
+                            ${file.status === 'error' || file.status === 'failed' ? 
+                                `<button class="file-retry-btn" onclick="event.stopPropagation(); window.fileManager.retryFile('${file.id}')" title="다시 처리하기">🔄</button>
+                                 <button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
+                            ${file.status === 'completed' || file.status === 'cancelled' ?
                                 `<button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
                         </div>
                     </div>
@@ -293,7 +298,7 @@ export async function selectFile(fileId) {
         await loadFileFromDatabase(fileId, fileItem);
     } else if (fileItem.status === 'processing') {
         showNotification(`${fileItem.name}이 아직 처리 중입니다.`, 'warning');
-    } else if (fileItem.status === 'error') {
+    } else if (fileItem.status === 'error' || fileItem.status === 'failed') {
         showNotification(`${fileItem.name} 처리 중 오류가 발생했습니다: ${fileItem.error}`, 'error');
     } else {
         showNotification(`${fileItem.name}이 처리 대기 중입니다.`, 'info');
@@ -439,9 +444,9 @@ async function processNextFile() {
         formData.append('file', waitingFile.file);
         formData.append('language', waitingFile.language);
         formData.append('file_id', waitingFile.id); // UUID 전송
-        formData.append('use_ocr', waitingFile.useOcr.toString()); // OCR 사용 여부
+        formData.append('use_ocr', (waitingFile.useOcr || true).toString()); // OCR 사용 여부 (기본값: true)
 
-        console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}, OCR: ${waitingFile.useOcr ? 'ON' : 'OFF'}`);
+        console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}, OCR: ${(waitingFile.useOcr || true) ? 'ON' : 'OFF'}`);
 
         // 서버로 파일 업로드 및 처리 중
         const token = localStorage.getItem('token');
@@ -482,7 +487,14 @@ async function processNextFile() {
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     const errorData = await response.json();
-                    errorMessage = errorData.detail || errorMessage;
+                    console.log('🔍 서버 에러 응답:', errorData); // 디버깅용
+                    if (errorData.detail && typeof errorData.detail === 'string') {
+                        errorMessage = errorData.detail;
+                    } else if (errorData.message && typeof errorData.message === 'string') {
+                        errorMessage = errorData.message;
+                    } else {
+                        errorMessage = `HTTP ${response.status} 오류 (JSON 응답)`;
+                    }
                 } else {
                     // HTML 에러 페이지인 경우
                     const errorText = await response.text();
@@ -490,13 +502,19 @@ async function processNextFile() {
                         errorMessage = '서버 내부 오류가 발생했습니다';
                     } else if (errorText.includes('400')) {
                         errorMessage = '잘못된 요청입니다';
+                    } else if (errorText.includes('404')) {
+                        errorMessage = '요청한 리소스를 찾을 수 없습니다';
+                    } else if (errorText.includes('413')) {
+                        errorMessage = '파일 크기가 너무 큽니다';
+                    } else if (errorText.includes('422')) {
+                        errorMessage = '처리할 수 없는 파일입니다';
                     } else {
                         errorMessage = `HTTP ${response.status} 오류`;
                     }
                 }
             } catch (parseError) {
                 console.error('에러 응답 파싱 실패:', parseError);
-                errorMessage = `HTTP ${response.status} 오류 (응답 파싱 실패)`;
+                errorMessage = `HTTP ${response.status} 서버 오류`;
             }
             throw new Error(errorMessage);
         }
@@ -516,7 +534,23 @@ async function processNextFile() {
         } else {
             console.error(`❌ ${waitingFile.name} 처리 실패:`, error);
             waitingFile.status = 'error';
-            waitingFile.error = error.message;
+            
+            // 에러 메시지를 안전하게 추출
+            let errorMessage = '알 수 없는 오류가 발생했습니다';
+            if (error && typeof error === 'object') {
+                if (error.message && typeof error.message === 'string') {
+                    errorMessage = error.message;
+                } else if (error.toString && typeof error.toString === 'function') {
+                    const errorStr = error.toString();
+                    if (errorStr !== '[object Object]') {
+                        errorMessage = errorStr;
+                    }
+                }
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+            
+            waitingFile.error = errorMessage;
         }
     }
 
@@ -537,6 +571,53 @@ export function getFileQueue() {
     return fileQueue;
 }
 
+
+// 파일 재처리
+export async function retryFile(fileId) {
+    const fileItem = fileQueue.find(f => f.id === fileId);
+    
+    if (!fileItem) {
+        console.error('재처리할 파일을 찾을 수 없습니다:', fileId);
+        showNotification('파일을 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    if (fileItem.status !== 'error' && fileItem.status !== 'failed') {
+        console.log('오류 상태가 아닌 파일은 재처리할 수 없습니다:', fileItem.status);
+        showNotification('오류 상태의 파일만 재처리할 수 있습니다.', 'warning');
+        return;
+    }
+    
+    console.log(`🔄 파일 재처리 시작: ${fileItem.name}`);
+    
+    // 원본 파일 객체가 없는 경우 처리 불가
+    if (!fileItem.file) {
+        console.error('❌ 원본 파일 객체가 없어 재처리할 수 없습니다');
+        showNotification('원본 파일이 없어 재처리할 수 없습니다. 파일을 다시 업로드해주세요.', 'error');
+        return;
+    }
+    
+    // 상태 초기화
+    fileItem.status = 'waiting';
+    fileItem.error = null;
+    fileItem.segments = null;
+    fileItem.pdfDoc = null;
+    
+    // OCR 설정이 없는 경우 기본값 설정
+    if (fileItem.useOcr === undefined || fileItem.useOcr === null) {
+        fileItem.useOcr = true; // 기본적으로 OCR 사용
+    }
+    
+    // 파일 리스트 업데이트
+    updateFileList();
+    
+    showNotification(`${fileItem.name} 재처리를 시작합니다.`, 'info');
+    
+    // 백그라운드 처리 시작 (이미 실행 중이 아니라면)
+    if (!processingQueue) {
+        startBackgroundProcessing();
+    }
+}
 
 // Export 함수들은 index.js에서 글로벌로 노출됨
 

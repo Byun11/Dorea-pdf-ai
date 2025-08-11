@@ -7,6 +7,9 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - TOKENIZERS_PARALLELISM=false
+      # PyTorch 경고 로그 억제
+      - PYTHONWARNINGS=ignore::UserWarning
+      - TRANSFORMERS_VERBOSITY=error
     networks:
       - pdf-network
     restart: unless-stopped

@@ -116,6 +116,7 @@ export function getStatusText(status) {
         'processing': '처리중...',
         'completed': '완료',
         'error': '오류',
+        'failed': '실패',
         'cancelled': '취소됨'
     };
     return statusMap[status] || status;

@@ -8,6 +8,7 @@ import { fetchApi, showNotification } from './utils.js';
 let currentUserSettings = null;
 let selectedProvider = 'gpt';
 let availableModels = [];
+let downloadController = null; // AbortController for download cancellation
 
 // Ollama 매니저 초기화
 export function init() {
@@ -230,10 +231,14 @@ export async function pullModel() {
         return;
     }
     
-    // 로딩 상태
+    // AbortController 생성
+    downloadController = new AbortController();
+    
+    // 로딩 상태 및 중단 버튼
     if (button) {
-        button.disabled = true;
-        button.innerHTML = '<div class="spinner w-4 h-4"></div>';
+        button.disabled = false;
+        button.innerHTML = '⏹️ 중단';
+        button.onclick = cancelModelDownload;
     }
     if (status) {
         status.style.display = 'block';
@@ -257,7 +262,8 @@ export async function pullModel() {
     try {
         const response = await fetchApi('/api/models/local/download', {
             method: 'POST',
-            body: JSON.stringify({ model_name: modelName })
+            body: JSON.stringify({ model_name: modelName }),
+            signal: downloadController.signal
         });
         
         if (!response.ok) {
@@ -291,16 +297,25 @@ export async function pullModel() {
                 
                 readStream();
             }).catch(error => {
-                console.error('스트림 읽기 오류:', error);
-                handleDownloadError(error);
+                if (error.name === 'AbortError') {
+                    console.log('🚫 스트림 읽기 중단됨 (정상)');
+                } else {
+                    console.error('스트림 읽기 오류:', error);
+                    handleDownloadError(error);
+                }
             });
         }
         
         readStream();
         
     } catch (error) {
-        console.error('❌ 모델 다운로드 오류:', error);
-        handleDownloadError(error);
+        if (error.name === 'AbortError') {
+            console.log('🚫 모델 다운로드가 사용자에 의해 중단됨');
+            handleDownloadCancelled();
+        } else {
+            console.error('❌ 모델 다운로드 오류:', error);
+            handleDownloadError(error);
+        }
     }
     
     function handleDownloadEvent(data) {
@@ -356,8 +371,11 @@ export async function pullModel() {
         // 버튼 상태 복원
         if (button) {
             button.disabled = false;
+            button.onclick = pullModel;
             button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path></svg>';
         }
+        
+        downloadController = null;
         
         // 모델 목록 새로고침
         setTimeout(() => {
@@ -383,8 +401,11 @@ export async function pullModel() {
         // 버튼 상태 복원
         if (button) {
             button.disabled = false;
+            button.onclick = pullModel;
             button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path></svg>';
         }
+        
+        downloadController = null;
         
         // 5초 후 상태 메시지 숨기기
         setTimeout(() => {
@@ -504,6 +525,44 @@ export async function saveModelSettings() {
     }
 }
 
+// 모델 다운로드 중단 함수
+export function cancelModelDownload() {
+    if (downloadController) {
+        console.log('🚫 모델 다운로드 중단 요청');
+        downloadController.abort();
+        downloadController = null;
+    }
+}
+
+// 다운로드 중단 시 UI 처리
+function handleDownloadCancelled() {
+    const button = document.getElementById('pullModelBtn');
+    const status = document.getElementById('pullModelStatus');
+    
+    if (status) {
+        status.className = 'status-warning border rounded p-2';
+        status.innerHTML = `
+            <div class="flex items-center">
+                <span>🚫 다운로드가 중단되었습니다.</span>
+            </div>
+        `;
+    }
+    
+    // 버튼 상태 복원
+    if (button) {
+        button.disabled = false;
+        button.onclick = pullModel;
+        button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path></svg>';
+    }
+    
+    // 3초 후 상태 메시지 숨기기
+    setTimeout(() => {
+        if (status) status.style.display = 'none';
+    }, 3000);
+    
+    downloadController = null;
+}
+
 // Export 함수들은 index.js에서 글로벌로 노출됨
 
 // HTML onclick에서 사용할 수 있도록 전역 함수로 등록
@@ -513,3 +572,4 @@ window.selectProvider = selectProvider;
 window.pullModel = pullModel;
 window.deleteModel = deleteModel;
 window.saveModelSettings = saveModelSettings;
+window.cancelModelDownload = cancelModelDownload;
