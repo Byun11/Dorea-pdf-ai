@@ -71,7 +71,7 @@ app.add_middleware(
 )
 
 # 파일 저장 경로
-FILES_DIR = Path("/app/database/files/users")
+FILES_DIR = Path("/app/DATABASE/files/users")
 FILES_DIR.mkdir(parents=True, exist_ok=True)
 
 # PDF 텍스트 검사 함수
@@ -1125,6 +1125,7 @@ async def get_file(
             "filename": file.filename,
             "file_size": file.file_size,
             "language": file.language,
+            "use_ocr": file.use_ocr,  # OCR 설정 추가
             "status": file.status,
             "error_message": file.error_message,
             "segments_data": file.segments_data,
@@ -1339,8 +1340,15 @@ async def process_segments(
         ).first()
         
         if existing_file:
-            print(f"⚠️ 이미 존재하는 파일 ID: {file_id}")
-            raise HTTPException(status_code=400, detail="이미 처리 중이거나 완료된 파일입니다")
+            # 재처리 가능한 상태 (failed, error)인지 확인
+            if existing_file.status not in ['failed', 'error']:
+                print(f"⚠️ 재처리 불가능한 상태 - 파일 ID: {file_id}, 상태: {existing_file.status}")
+                raise HTTPException(status_code=400, detail="이미 처리 중이거나 완료된 파일입니다")
+            
+            # 재처리 허용 - 기존 파일 삭제하고 새로 생성
+            print(f"🔄 재처리 허용 - 파일 ID: {file_id}, 기존 상태: {existing_file.status}")
+            db.delete(existing_file)
+            db.commit()
         
         # 2. DB에 파일 정보 저장 (UUID 사용)
         db_file = PDFFile(
@@ -1350,6 +1358,7 @@ async def process_segments(
             file_path="",  # 나중에 업데이트
             file_size=0,   # 나중에 업데이트
             language=language,
+            use_ocr=use_ocr,  # OCR 설정 저장
             status="processing"
         )
         
