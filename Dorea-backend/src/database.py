@@ -55,6 +55,9 @@ class PDFFile(Base):
     status = Column(String(20), default="waiting")  # waiting, processing, completed, error, cancelled
     error_message = Column(Text, nullable=True)
     
+    # OCR 설정
+    use_ocr = Column(Boolean, default=True, nullable=False)  # OCR 사용 여부
+    
     # 메타데이터
     segments_data = Column(JSON, nullable=True)  # 세그먼트 정보 JSON 저장
     

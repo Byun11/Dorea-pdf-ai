@@ -444,9 +444,9 @@ async function processNextFile() {
         formData.append('file', waitingFile.file);
         formData.append('language', waitingFile.language);
         formData.append('file_id', waitingFile.id); // UUID 전송
-        formData.append('use_ocr', (waitingFile.useOcr || true).toString()); // OCR 사용 여부 (기본값: true)
+        formData.append('use_ocr', (waitingFile.useOcr !== false).toString()); // OCR 사용 여부 (기본값: true, false일 때만 false)
 
-        console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}, OCR: ${(waitingFile.useOcr || true) ? 'ON' : 'OFF'}`);
+        console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}, OCR: ${waitingFile.useOcr !== false ? 'ON' : 'OFF'}`);
 
         // 서버로 파일 업로드 및 처리 중
         const token = localStorage.getItem('token');
@@ -590,11 +590,29 @@ export async function retryFile(fileId) {
     
     console.log(`🔄 파일 재처리 시작: ${fileItem.name}`);
     
-    // 원본 파일 객체가 없는 경우 처리 불가
+    // 원본 파일 객체가 없는 경우 서버에서 다운로드
     if (!fileItem.file) {
-        console.error('❌ 원본 파일 객체가 없어 재처리할 수 없습니다');
-        showNotification('원본 파일이 없어 재처리할 수 없습니다. 파일을 다시 업로드해주세요.', 'error');
-        return;
+        console.log('📥 서버에서 원본 파일 다운로드 중...');
+        try {
+            // 서버에서 PDF 파일 다운로드
+            const response = await fetchApi(`/files/${fileItem.id}/pdf`);
+            if (!response.ok) {
+                throw new Error(`파일 다운로드 실패: ${response.status}`);
+            }
+            
+            // Blob을 File 객체로 변환
+            const blob = await response.blob();
+            const file = new File([blob], fileItem.name, { type: 'application/pdf' });
+            
+            // fileItem에 File 객체 저장
+            fileItem.file = file;
+            console.log('✅ 원본 파일 다운로드 완료:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+            
+        } catch (error) {
+            console.error('❌ 파일 다운로드 실패:', error);
+            showNotification('원본 파일을 서버에서 가져올 수 없습니다. 파일을 다시 업로드해주세요.', 'error');
+            return;
+        }
     }
     
     // 상태 초기화
@@ -603,9 +621,23 @@ export async function retryFile(fileId) {
     fileItem.segments = null;
     fileItem.pdfDoc = null;
     
-    // OCR 설정이 없는 경우 기본값 설정
+    // OCR 설정이 없는 경우 서버에서 원본 설정 가져오기
     if (fileItem.useOcr === undefined || fileItem.useOcr === null) {
-        fileItem.useOcr = true; // 기본적으로 OCR 사용
+        try {
+            console.log('📥 서버에서 원본 OCR 설정 가져오는 중...');
+            const response = await fetchApi(`/files/${fileItem.id}`);
+            if (response.ok) {
+                const data = await response.json();
+                fileItem.useOcr = data.file.use_ocr; // 원본 OCR 설정 사용
+                console.log(`✅ 원본 OCR 설정 적용: ${fileItem.useOcr}`);
+            } else {
+                fileItem.useOcr = true; // 기본값
+                console.log('⚠️ 원본 설정을 가져올 수 없어 기본값 사용: OCR 활성화');
+            }
+        } catch (error) {
+            fileItem.useOcr = true; // 기본값
+            console.log('⚠️ OCR 설정 가져오기 실패, 기본값 사용:', error);
+        }
     }
     
     // 파일 리스트 업데이트
