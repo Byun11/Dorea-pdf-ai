@@ -144,7 +144,7 @@ function renderFileItem(file, level) {
                 <span class="file-status">${statusEmoji[file.status] || '📄'}</span>
             </div>
             <div class="file-actions">
-                ${file.status === 'completed' || file.status === 'error' || file.status === 'failed' ? `
+                ${file.status === 'completed' || file.status === 'error' || file.status === 'failed' || file.status === 'waiting' ? `
                     <button onclick="event.stopPropagation(); folderTreeManager.showFileContextMenu('${file.id}', event)" 
                             class="context-menu-btn" title="파일 옵션">⋮</button>
                 ` : ''}
@@ -373,6 +373,12 @@ function showFileContextMenu(fileId, event) {
                 🔄 재시도
             </div>
         `);
+    } else if (file.status === 'waiting') {
+        menuItems.push(`
+            <div class="context-menu-item" onclick="folderTreeManager.cancelProcessing('${fileId}')">
+                ⏸ 처리 중단
+            </div>
+        `);
     }
     
     menuItems.push(`
@@ -456,26 +462,51 @@ async function reprocessFile(fileId) {
     }
 }
 
-// 파일 재시도
+// 파일 재시도 - fileManager의 retryFile 함수 호출 (원래 방식)
 async function retryFile(fileId) {
     try {
-        showNotification('파일 재시도를 시작합니다...', 'info');
+        console.log(`🔄 [folderTreeManager] retryFile 호출: ${fileId}`);
         
-        const response = await fetchApi(`/api/files/${fileId}/retry`, {
+        // fileManager의 retryFile 함수 호출 (실제 처리 큐에 추가)
+        if (window.fileManager && window.fileManager.retryFile) {
+            await window.fileManager.retryFile(fileId);
+        } else {
+            throw new Error('fileManager.retryFile 함수를 찾을 수 없습니다');
+        }
+        
+        // 트리 새로고침
+        await loadFolderTree();
+        
+    } catch (error) {
+        console.error('재시도 오류:', error);
+        showNotification('재시도 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+// 파일 처리 중단 (waiting 상태용)
+async function cancelProcessing(fileId) {
+    try {
+        console.log(`⏸ 파일 처리 중단 요청: ${fileId}`);
+        
+        // 백엔드에 상태를 'failed'로 업데이트
+        const response = await fetchApi(`/api/files/${fileId}/cancel-processing`, {
             method: 'POST'
         });
         
         if (response.ok) {
-            showNotification('파일 재시도가 시작되었습니다.', 'success');
-            // 트리 새로고침
-            await loadFolderTree();
+            showNotification('파일 처리를 중단했습니다. 재시도할 수 있습니다.', 'success');
+            console.log(`✅ 파일 상태가 failed로 변경됨: ${fileId}`);
         } else {
             const errorData = await response.json();
-            showNotification(`재시도 실패: ${errorData.detail}`, 'error');
+            showNotification(`처리 중단 실패: ${errorData.detail}`, 'error');
         }
+        
+        // 트리 새로고침
+        await loadFolderTree();
+        
     } catch (error) {
-        console.error('재시도 오류:', error);
-        showNotification('재시도 중 오류가 발생했습니다.', 'error');
+        console.error('❌ 처리 중단 오류:', error);
+        showNotification('처리 중단 중 오류가 발생했습니다.', 'error');
     }
 }
 
@@ -589,6 +620,7 @@ window.folderTreeManager = {
     reprocessFile,
     retryFile,
     deleteFile,
+    cancelProcessing,
     showFolderContextMenu,
     showFileContextMenu,
     showMoveFileDialog,

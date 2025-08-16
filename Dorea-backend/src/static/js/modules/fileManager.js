@@ -112,6 +112,13 @@ async function loadUserFiles() {
             }));
 
             updateFileList();
+            
+            // waiting 상태 파일들이 있으면 자동으로 처리 시작
+            const waitingFiles = fileQueue.filter(f => f.status === 'waiting');
+            if (waitingFiles.length > 0) {
+                console.log(`📋 ${waitingFiles.length}개의 대기 중인 파일 발견, 처리 시작`);
+                startBackgroundProcessing();
+            }
         }
     } catch (error) {
         console.error('파일 목록 로드 오류:', error);
@@ -285,8 +292,11 @@ function updateFileList() {
                             </div>
                         </div>
                         <div class="file-actions">
-                            ${file.status === 'processing' || file.status === 'waiting' ? 
+                            ${file.status === 'processing' ? 
                                 `<button class="file-cancel-btn" onclick="event.stopPropagation(); window.fileManager.cancelFile('${file.id}')" title="처리 중단하고 삭제">×</button>` : ''}
+                            ${file.status === 'waiting' ? 
+                                `<button class="file-cancel-btn" onclick="event.stopPropagation(); window.fileManager.cancelFile('${file.id}')" title="처리 중단">⏸</button>
+                                 <button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
                             ${file.status === 'error' || file.status === 'failed' ? 
                                 `<button class="file-retry-btn" onclick="event.stopPropagation(); window.fileManager.retryFile('${file.id}')" title="다시 처리하기">🔄</button>
                                  <button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
@@ -418,9 +428,27 @@ export async function cancelFile(fileId) {
         }
         
     } else if (fileItem.status === 'waiting') {
-        // 대기 중인 파일은 바로 큐에서 제거
+        console.log(`⏸ 대기 중인 파일 중단: ${fileItem.name} (ID: ${fileId})`);
+        
+        // 백엔드 DB에서도 상태 업데이트
+        try {
+            const response = await fetchApi(`/files/${fileId}`, {
+                method: 'DELETE'
+            });
+            console.log(`🗑️ 백엔드 파일 삭제 응답: ${response.status}`);
+        } catch (error) {
+            console.error('❌ 백엔드 파일 삭제 실패:', error);
+        }
+        
+        // 큐에서 제거
         fileQueue = fileQueue.filter(f => f.id !== fileId);
         updateFileList();
+        
+        // 폴더 트리도 새로고침  
+        if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+            window.folderTreeManager.loadFolderTree();
+        }
+        
         showNotification(`${fileItem.name}을 대기 큐에서 삭제했습니다.`, 'success');
     }
 }
@@ -465,12 +493,18 @@ export async function deleteFile(fileId) {
 // 다음 파일 처리
 async function processNextFile() {
     const waitingFile = fileQueue.find(f => f.status === 'waiting');
+    console.log(`🔍 [processNextFile] 대기 중인 파일 검색...`);
+    console.log(`📋 [processNextFile] 전체 큐 상태:`, fileQueue.map(f => `${f.name}: ${f.status}`));
+    
     if (!waitingFile) {
+        console.log(`⏹️ [processNextFile] 대기 중인 파일 없음, 처리 종료`);
         processingQueue = false;
-        // 모든 파일 처리 완료
         return;
     }
 
+    console.log(`🚀 [processNextFile] 처리 시작: ${waitingFile.name} (ID: ${waitingFile.id})`);
+    console.log(`📄 [processNextFile] 파일 객체 존재:`, !!waitingFile.file);
+    
     processingQueue = true;
     waitingFile.status = 'processing';
     updateFileList();
@@ -603,6 +637,11 @@ async function processNextFile() {
     }
 
     updateFileList();
+    
+    // 폴더 트리 새로고침 (성공/실패 관계없이)
+    if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+        window.folderTreeManager.loadFolderTree();
+    }
 
     // 다음 파일 처리
     setTimeout(() => {
@@ -622,12 +661,43 @@ export function getFileQueue() {
 
 // 파일 재처리
 export async function retryFile(fileId) {
-    const fileItem = fileQueue.find(f => f.id === fileId);
+    let fileItem = fileQueue.find(f => f.id === fileId);
     
+    // fileQueue에 없으면 백엔드에서 파일 정보 가져와서 추가
     if (!fileItem) {
-        console.error('재처리할 파일을 찾을 수 없습니다:', fileId);
-        showNotification('파일을 찾을 수 없습니다.', 'error');
-        return;
+        console.log(`📥 fileQueue에 없는 파일, 백엔드에서 정보 가져오는 중: ${fileId}`);
+        try {
+            const response = await fetchApi(`/files/${fileId}`);
+            if (response.ok) {
+                const data = await response.json();
+                const file = data.file;
+                
+                // fileQueue에 추가
+                fileItem = {
+                    id: file.id,
+                    file: null, // 재처리 모드이므로 파일 객체 없음
+                    name: file.filename,
+                    language: file.language,
+                    status: file.status,
+                    segments: file.segments_data || [],
+                    error: file.error_message,
+                    file_size: file.file_size,
+                    created_at: file.created_at,
+                    useOcr: file.use_ocr
+                };
+                
+                fileQueue.push(fileItem);
+                console.log(`✅ 백엔드에서 파일 정보 가져와서 fileQueue에 추가: ${file.filename}`);
+            } else {
+                console.error('파일 정보를 가져올 수 없습니다:', response.status);
+                showNotification('파일 정보를 가져올 수 없습니다.', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('파일 정보 로드 오류:', error);
+            showNotification('파일 정보를 로드하는 중 오류가 발생했습니다.', 'error');
+            return;
+        }
     }
     
     if (fileItem.status !== 'error' && fileItem.status !== 'failed') {
@@ -638,9 +708,9 @@ export async function retryFile(fileId) {
     
     console.log(`🔄 파일 재처리 시작: ${fileItem.name}`);
     
-    // 원본 파일 객체가 없는 경우 서버에서 다운로드
+    // 2. 백그라운드에서 파일 다운로드 (필요시)
     if (!fileItem.file) {
-        console.log('📥 서버에서 원본 파일 다운로드 중...');
+        console.log('📥 백그라운드에서 원본 파일 다운로드 중...');
         try {
             // 서버에서 PDF 파일 다운로드
             const response = await fetchApi(`/files/${fileItem.id}/pdf`);
@@ -654,7 +724,7 @@ export async function retryFile(fileId) {
             
             // fileItem에 File 객체 저장
             fileItem.file = file;
-            console.log('✅ 원본 파일 다운로드 완료:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+            console.log('✅ 백그라운드 파일 다운로드 완료:', file.name, `(${(file.size / 1024 / 1024).toFixed(2)}MB)`);
             
         } catch (error) {
             console.error('❌ 파일 다운로드 실패:', error);
@@ -662,12 +732,6 @@ export async function retryFile(fileId) {
             return;
         }
     }
-    
-    // 상태 초기화
-    fileItem.status = 'waiting';
-    fileItem.error = null;
-    fileItem.segments = null;
-    fileItem.pdfDoc = null;
     
     // OCR 설정이 없는 경우 서버에서 원본 설정 가져오기
     if (fileItem.useOcr === undefined || fileItem.useOcr === null) {
@@ -687,6 +751,12 @@ export async function retryFile(fileId) {
             console.log('⚠️ OCR 설정 가져오기 실패, 기본값 사용:', error);
         }
     }
+    
+    // 상태 초기화
+    fileItem.status = 'waiting';
+    fileItem.error = null;
+    fileItem.segments = null;
+    fileItem.pdfDoc = null;
     
     // 파일 리스트 업데이트
     updateFileList();
