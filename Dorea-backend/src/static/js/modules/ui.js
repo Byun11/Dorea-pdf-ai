@@ -597,7 +597,10 @@ async function loadFolderSelectOptions() {
         const response = await fetchApi('/api/folders');
         if (response.ok) {
             const data = await response.json();
-            const folders = data.data || [];
+            const allData = data.data || [];
+            
+            // 폴더만 필터링 (파일 제외)
+            const folders = allData.filter(item => item.type === 'folder' && item.name);
             
             // 폴더 옵션 생성 (계층 구조 표시)
             folderSelect.innerHTML = '<option value="">루트 (최상위)</option>';
@@ -642,6 +645,12 @@ function buildFolderTree(folders) {
 // 재귀적으로 폴더 옵션 추가
 function addFolderOptionsRecursive(selectElement, folders, depth) {
     folders.forEach(folder => {
+        // 폴더 정보 검증
+        if (!folder || !folder.id || !folder.name) {
+            console.warn('잘못된 폴더 데이터:', folder);
+            return;
+        }
+        
         const indent = '　'.repeat(depth); // 전각 공백으로 들여쓰기
         const option = document.createElement('option');
         option.value = folder.id;
