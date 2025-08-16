@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.sql import func
 
 # 내부 모듈
-from database import get_db, PDFFile, ChatSession, ChatMessage, UserSettings, User, hash_api_key, create_database
+from database import get_db, PDFFile, ChatSession, ChatMessage, UserSettings, User, Folder, hash_api_key, create_database, get_user_files_tree, validate_folder_move
 from auth import verify_api_key, create_openai_client, get_current_user, authenticate_user, create_access_token, get_password_hash
 
 # 외부 라이브러리
@@ -178,6 +178,39 @@ class ModelDownloadRequest(BaseModel):
     
     model_name: str
 
+# 폴더 관리 관련 Pydantic 모델
+class FolderCreateRequest(BaseModel):
+    name: str
+    parent_id: Optional[int] = None
+    description: Optional[str] = None
+
+class FolderUpdateRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class FolderResponse(BaseModel):
+    id: int
+    name: str
+    parent_id: Optional[int]
+    description: Optional[str]
+    created_at: str
+    updated_at: str
+    type: str = "folder"
+
+class FileData(BaseModel):
+    id: str
+    filename: str
+    file_size: int
+    status: str
+    language: str
+    use_ocr: bool
+    created_at: str
+    folder_id: Optional[int]
+    type: str = "file"
+
+class FileMoveRequest(BaseModel):
+    new_folder_id: Optional[int] = None
+
 # 멀티모달 지원 여부 캐시
 multimodal_support_cache = {}
 
@@ -238,22 +271,38 @@ async def check_ollama_model_multimodal_support(model_name: str) -> bool:
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """랜딩 페이지 (로그인 전)"""
-    return FileResponse(STATIC_DIR / 'landing.html')
+    html_file = STATIC_DIR / 'landing.html'
+    if html_file.exists():
+        return HTMLResponse(content=html_file.read_text(encoding='utf-8'))
+    else:
+        raise HTTPException(status_code=404, detail="Landing page not found")
 
 @app.get("/login", response_class=HTMLResponse)
 async def login():
     """로그인 페이지"""
-    return FileResponse(STATIC_DIR / 'login.html')
+    html_file = STATIC_DIR / 'login.html'
+    if html_file.exists():
+        return HTMLResponse(content=html_file.read_text(encoding='utf-8'))
+    else:
+        raise HTTPException(status_code=404, detail="Login page not found")
 
 @app.get("/register", response_class=HTMLResponse)
 async def register():
     """회원가입 페이지"""
-    return FileResponse(STATIC_DIR / 'register.html')
+    html_file = STATIC_DIR / 'register.html'
+    if html_file.exists():
+        return HTMLResponse(content=html_file.read_text(encoding='utf-8'))
+    else:
+        raise HTTPException(status_code=404, detail="Register page not found")
 
 @app.get("/app", response_class=HTMLResponse) 
 async def main_app():
     """메인 앱 (로그인 후)"""
-    return FileResponse(STATIC_DIR / 'index.html')
+    html_file = STATIC_DIR / 'index.html'
+    if html_file.exists():
+        return HTMLResponse(content=html_file.read_text(encoding='utf-8'))
+    else:
+        raise HTTPException(status_code=404, detail="Main app page not found")
 
 # 기존 엔드포인트들 위에 추가
 @app.post("/auth/verify-key")
@@ -992,7 +1041,7 @@ async def process_ocr(file: UploadFile = File(...)):
             if not ocr_path.exists() or ocr_path.stat().st_size == 0:
                 raise HTTPException(status_code=500, detail="OCR 처리된 파일이 생성되지 않았습니다.")
             
-            return FileResponse(str(ocr_path), media_type="application/pdf", filename=f"ocr_{file.filename}")
+            return FileResponse(path=str(ocr_path), media_type="application/pdf", filename=f"ocr_{file.filename}")
     
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"HURIDOCS API 요청 오류: {str(e)}")
@@ -1056,7 +1105,7 @@ async def process_visualize(file: UploadFile = File(...)):
             if not vgt_path.exists() or vgt_path.stat().st_size == 0:
                 raise HTTPException(status_code=500, detail="시각화 처리된 파일이 생성되지 않았습니다.")
             
-            return FileResponse(str(vgt_path), media_type="application/pdf", filename=f"vgt_{file.filename}")
+            return FileResponse(path=str(vgt_path), media_type="application/pdf", filename=f"vgt_{file.filename}")
     
     except httpx.RequestError as e:
         raise HTTPException(status_code=500, detail=f"HURIDOCS API 요청 오류: {str(e)}")
@@ -1068,6 +1117,207 @@ async def process_visualize(file: UploadFile = File(...)):
 
 
 
+# 폴더 관리 API들
+
+@app.get("/api/folders")
+async def get_folders_tree(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """사용자의 폴더 트리 구조 및 파일 목록 조회"""
+    try:
+        tree = get_user_files_tree(db, current_user.id)
+        return {"data": tree, "message": "폴더 트리를 성공적으로 조회했습니다."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"폴더 트리 조회 중 오류가 발생했습니다: {str(e)}")
+
+@app.post("/api/folders", response_model=FolderResponse)
+async def create_folder(
+    request: FolderCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """새 폴더 생성"""
+    try:
+        # 부모 폴더가 존재하는지 확인 (parent_id가 있는 경우)
+        if request.parent_id:
+            parent_folder = db.query(Folder).filter(
+                Folder.id == request.parent_id,
+                Folder.user_id == current_user.id
+            ).first()
+            if not parent_folder:
+                raise HTTPException(status_code=404, detail="부모 폴더를 찾을 수 없습니다.")
+        
+        # 같은 레벨에 동일한 이름의 폴더가 있는지 확인
+        existing_folder = db.query(Folder).filter(
+            Folder.user_id == current_user.id,
+            Folder.parent_id == request.parent_id,
+            Folder.name == request.name
+        ).first()
+        if existing_folder:
+            raise HTTPException(status_code=400, detail="같은 위치에 동일한 이름의 폴더가 이미 존재합니다.")
+        
+        # 새 폴더 생성
+        new_folder = Folder(
+            user_id=current_user.id,
+            name=request.name,
+            parent_id=request.parent_id,
+            description=request.description
+        )
+        
+        db.add(new_folder)
+        db.commit()
+        db.refresh(new_folder)
+        
+        return FolderResponse(
+            id=new_folder.id,
+            name=new_folder.name,
+            parent_id=new_folder.parent_id,
+            description=new_folder.description,
+            created_at=new_folder.created_at.isoformat(),
+            updated_at=new_folder.updated_at.isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"폴더 생성 중 오류가 발생했습니다: {str(e)}")
+
+@app.put("/api/folders/{folder_id}", response_model=FolderResponse)
+async def update_folder(
+    folder_id: int,
+    request: FolderUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """폴더 정보 수정"""
+    try:
+        # 폴더 존재 및 권한 확인
+        folder = db.query(Folder).filter(
+            Folder.id == folder_id,
+            Folder.user_id == current_user.id
+        ).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="폴더를 찾을 수 없습니다.")
+        
+        # 같은 레벨에 동일한 이름의 폴더가 있는지 확인 (현재 폴더 제외)
+        existing_folder = db.query(Folder).filter(
+            Folder.user_id == current_user.id,
+            Folder.parent_id == folder.parent_id,
+            Folder.name == request.name,
+            Folder.id != folder_id
+        ).first()
+        if existing_folder:
+            raise HTTPException(status_code=400, detail="같은 위치에 동일한 이름의 폴더가 이미 존재합니다.")
+        
+        # 폴더 정보 업데이트
+        folder.name = request.name
+        if request.description is not None:
+            folder.description = request.description
+        
+        db.commit()
+        db.refresh(folder)
+        
+        return FolderResponse(
+            id=folder.id,
+            name=folder.name,
+            parent_id=folder.parent_id,
+            description=folder.description,
+            created_at=folder.created_at.isoformat(),
+            updated_at=folder.updated_at.isoformat()
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"폴더 수정 중 오류가 발생했습니다: {str(e)}")
+
+@app.delete("/api/folders/{folder_id}")
+async def delete_folder(
+    folder_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """폴더 삭제"""
+    try:
+        # 폴더 존재 및 권한 확인
+        folder = db.query(Folder).filter(
+            Folder.id == folder_id,
+            Folder.user_id == current_user.id
+        ).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="폴더를 찾을 수 없습니다.")
+        
+        # 하위 폴더 확인
+        subfolders = db.query(Folder).filter(Folder.parent_id == folder_id).count()
+        if subfolders > 0:
+            raise HTTPException(status_code=400, detail="하위 폴더가 있는 폴더는 삭제할 수 없습니다. 먼저 하위 폴더를 삭제하거나 이동하세요.")
+        
+        # 폴더 내 파일들을 루트로 이동
+        files_in_folder = db.query(PDFFile).filter(PDFFile.folder_id == folder_id).all()
+        for file in files_in_folder:
+            file.folder_id = None
+        
+        # 폴더 삭제
+        db.delete(folder)
+        db.commit()
+        
+        return {"message": f"폴더 '{folder.name}'이 성공적으로 삭제되었습니다. 폴더 내 {len(files_in_folder)}개 파일이 루트로 이동되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"폴더 삭제 중 오류가 발생했습니다: {str(e)}")
+
+@app.patch("/api/files/{file_id}/move")
+async def move_file(
+    file_id: str,
+    request: FileMoveRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """파일을 다른 폴더로 이동"""
+    try:
+        # 파일 존재 및 권한 확인
+        file = db.query(PDFFile).filter(
+            PDFFile.id == file_id,
+            PDFFile.user_id == current_user.id
+        ).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+        
+        # 대상 폴더 확인 (new_folder_id가 None이 아닌 경우)
+        if request.new_folder_id is not None:
+            target_folder = db.query(Folder).filter(
+                Folder.id == request.new_folder_id,
+                Folder.user_id == current_user.id
+            ).first()
+            if not target_folder:
+                raise HTTPException(status_code=404, detail="대상 폴더를 찾을 수 없습니다.")
+        
+        # 파일 이동
+        old_folder_id = file.folder_id
+        file.folder_id = request.new_folder_id
+        
+        db.commit()
+        
+        if request.new_folder_id is None:
+            move_location = "루트"
+        else:
+            target_folder = db.query(Folder).filter(Folder.id == request.new_folder_id).first()
+            move_location = f"'{target_folder.name}' 폴더"
+        
+        return {"message": f"파일 '{file.filename}'이 {move_location}로 이동되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"파일 이동 중 오류가 발생했습니다: {str(e)}")
+
 # backend.py에 추가할 파일 관리 API들
 
 @app.get("/files")
@@ -1075,7 +1325,7 @@ async def get_files(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """사용자의 파일 목록 조회"""
+    """사용자의 파일 목록 조회 (폴더별 트리 구조로 변경됨 - /api/folders 사용 권장)"""
     # JWT 인증된 사용자의 파일만 조회
     files = db.query(PDFFile).filter(
         PDFFile.user_id == current_user.id
@@ -1092,6 +1342,7 @@ async def get_files(
             "status": file.status,
             "error_message": file.error_message,
             "segments_count": len(file.segments_data) if file.segments_data else 0,
+            "folder_id": file.folder_id,  # 폴더 정보 추가
             "created_at": file.created_at.isoformat() if file.created_at else None,
             "processed_at": file.processed_at.isoformat() if file.processed_at else None
         }
@@ -1129,6 +1380,7 @@ async def get_file(
             "status": file.status,
             "error_message": file.error_message,
             "segments_data": file.segments_data,
+            "folder_id": file.folder_id,  # 폴더 정보 추가
             "created_at": file.created_at.isoformat() if file.created_at else None,
             "processed_at": file.processed_at.isoformat() if file.processed_at else None
         }
@@ -1206,9 +1458,9 @@ async def get_pdf_file(
     
     # OCR 파일이 있으면 OCR 파일, 없으면 원본 파일 반환
     if ocr_path.exists():
-        return FileResponse(str(ocr_path), media_type="application/pdf", filename=file.filename)
+        return FileResponse(path=str(ocr_path), media_type="application/pdf", filename=file.filename)
     elif original_path.exists():
-        return FileResponse(str(original_path), media_type="application/pdf", filename=file.filename)
+        return FileResponse(path=str(original_path), media_type="application/pdf", filename=file.filename)
     else:
         raise HTTPException(status_code=404, detail="PDF 파일을 찾을 수 없습니다")
     
@@ -1321,6 +1573,7 @@ async def process_segments(
     language: str = Form("ko"),
     file_id: str = Form(...),  # UUID 받기
     use_ocr: bool = Form(False),  # OCR 사용 여부 (기본값: False)
+    folder_id: Optional[int] = Form(None),  # 폴더 ID (선택사항)
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1332,6 +1585,15 @@ async def process_segments(
         if not is_valid_uuid(file_id):
             print(f"❌ 잘못된 UUID 형식: {file_id}")
             raise HTTPException(status_code=400, detail="잘못된 파일 ID 형식입니다")
+        
+        # 2. 폴더 존재 및 권한 확인 (folder_id가 제공된 경우)
+        if folder_id is not None:
+            target_folder = db.query(Folder).filter(
+                Folder.id == folder_id,
+                Folder.user_id == current_user.id
+            ).first()
+            if not target_folder:
+                raise HTTPException(status_code=404, detail="지정된 폴더를 찾을 수 없습니다.")
         
         # 2. 기존 파일 확인 (중복 처리 방지)
         existing_file = db.query(PDFFile).filter(
@@ -1354,6 +1616,7 @@ async def process_segments(
         db_file = PDFFile(
             id=file_id,  # UUID 직접 사용
             user_id=current_user.id,
+            folder_id=folder_id,  # 폴더 ID 저장
             filename=file.filename,
             file_path="",  # 나중에 업데이트
             file_size=0,   # 나중에 업데이트
@@ -2086,9 +2349,129 @@ async def delete_model(
 @app.on_event("shutdown")
 def cleanup():
     """서버 종료 시 임시 파일 정리"""
-    for file in FILES_DIR.glob("*"):
-        file.unlink()
-    FILES_DIR.rmdir()
+    try:
+        for file in FILES_DIR.glob("*"):
+            if file.is_file():
+                file.unlink()
+            elif file.is_dir():
+                # 디렉터리는 건드리지 않음 (사용자 데이터 보호)
+                pass
+    except Exception as e:
+        print(f"Cleanup 오류 (무시됨): {e}")
+
+# 파일 재처리 및 재시도 API
+@app.post("/api/files/{file_id}/reprocess")
+async def reprocess_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """완료된 파일을 재처리"""
+    try:
+        # 파일 존재 및 권한 확인
+        file = db.query(PDFFile).filter(
+            PDFFile.id == file_id,
+            PDFFile.user_id == current_user.id
+        ).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+        
+        if file.status != 'completed':
+            raise HTTPException(status_code=400, detail="완료된 파일만 재처리할 수 있습니다.")
+        
+        # 파일 상태를 waiting으로 변경
+        file.status = 'waiting'
+        file.error_message = None
+        file.processed_at = None
+        file.segments_data = None
+        
+        db.commit()
+        
+        return {"message": f"파일 '{file.filename}'이 재처리 대기열에 추가되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"파일 재처리 중 오류가 발생했습니다: {str(e)}")
+
+@app.post("/api/files/{file_id}/retry")
+async def retry_file(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """실패한 파일을 재시도"""
+    try:
+        # 파일 존재 및 권한 확인
+        file = db.query(PDFFile).filter(
+            PDFFile.id == file_id,
+            PDFFile.user_id == current_user.id
+        ).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+        
+        if file.status not in ['error', 'failed']:
+            raise HTTPException(status_code=400, detail="실패한 파일만 재시도할 수 있습니다.")
+        
+        # 파일 상태를 waiting으로 변경
+        file.status = 'waiting'
+        file.error_message = None
+        file.processed_at = None
+        
+        db.commit()
+        
+        return {"message": f"파일 '{file.filename}'이 재시도 대기열에 추가되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"파일 재시도 중 오류가 발생했습니다: {str(e)}")
+
+@app.delete("/api/files/{file_id}")
+async def delete_file_api(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """파일 삭제"""
+    try:
+        # 파일 존재 및 권한 확인
+        file = db.query(PDFFile).filter(
+            PDFFile.id == file_id,
+            PDFFile.user_id == current_user.id
+        ).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+        
+        # 관련 채팅 세션들도 삭제
+        chat_sessions = db.query(ChatSession).filter(ChatSession.file_id == file_id).all()
+        for session in chat_sessions:
+            # 채팅 메시지들 삭제
+            db.query(ChatMessage).filter(ChatMessage.session_id == session.id).delete()
+            # 채팅 세션 삭제
+            db.delete(session)
+        
+        # 실제 파일 삭제 (파일 시스템에서)
+        try:
+            import os
+            if file.file_path and os.path.exists(file.file_path):
+                os.remove(file.file_path)
+        except Exception as e:
+            print(f"파일 시스템에서 파일 삭제 실패: {e}")
+        
+        # 데이터베이스에서 파일 기록 삭제
+        db.delete(file)
+        db.commit()
+        
+        return {"message": f"파일 '{file.filename}'이 성공적으로 삭제되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"파일 삭제 중 오류가 발생했습니다: {str(e)}")
 
 # 개발 서버 실행
 if __name__ == "__main__":

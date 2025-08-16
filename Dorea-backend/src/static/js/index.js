@@ -10,6 +10,7 @@ import * as FileManager from './modules/fileManager.js';
 import * as Chat from './modules/chat.js';
 import * as OllamaManager from './modules/ollamaManager.js';
 import * as ShortcutManager from './modules/shortcutManager.js';
+import './modules/folderTreeManager.js'; // 글로벌 객체로 등록됨
 
 // 페이지 로드시 초기화
 window.addEventListener('DOMContentLoaded', async () => {
@@ -50,6 +51,11 @@ function initializeModules() {
     Chat.init();
     OllamaManager.init();
     ShortcutManager.init();
+    
+    // 폴더 트리 매니저 초기화 (기존 파일 매니저 이후)
+    if (window.folderTreeManager) {
+        window.folderTreeManager.init();
+    }
 }
 
 // 모듈 간 연결 설정
@@ -87,8 +93,15 @@ function setupModuleIntegration() {
         }
     });
     
+    // 파일 업로드 완료 이벤트 처리 (폴더 트리 새로고침)
+    document.addEventListener('fileUploaded', async () => {
+        if (window.folderTreeManager) {
+            await window.folderTreeManager.loadFolderTree();
+        }
+    });
+    
     // 파일 삭제 이벤트 처리
-    document.addEventListener('fileDeleted', () => {
+    document.addEventListener('fileDeleted', async () => {
         console.log('🗑️ 파일 삭제 이벤트 처리 시작');
         
         // PDF 뷰어 초기화
@@ -101,6 +114,11 @@ function setupModuleIntegration() {
         // AI 패널 숨기기
         hideAIPanel();
         console.log('💬 AI 패널 숨김 완료');
+        
+        // 폴더 트리 새로고침
+        if (window.folderTreeManager) {
+            await window.folderTreeManager.loadFolderTree();
+        }
         
         // 기존 업로드 존은 이미 제거됨 (랜딩 오버레이로 대체)
         

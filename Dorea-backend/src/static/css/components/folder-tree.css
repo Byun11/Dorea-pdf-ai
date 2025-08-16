@@ -1,0 +1,465 @@
+/* folder-tree.css - 폴더 트리뷰 스타일 */
+
+.folder-tree-container {
+    height: 100%;
+    overflow-y: auto;
+    border-right: 1px solid #e5e7eb;
+    background: #ffffff;
+}
+
+.folder-tree-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.folder-tree-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0 0 0.5rem 0;
+}
+
+.folder-tree-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.create-folder-btn {
+    padding: 0.5rem 1rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.create-folder-btn:hover {
+    background: #1d4ed8;
+}
+
+/* 트리 아이템 */
+.tree-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    position: relative;
+}
+
+.tree-item:hover {
+    background: #f9fafb;
+}
+
+.tree-item.selected {
+    background: #eff6ff;
+    border-left: 3px solid #2563eb;
+}
+
+.tree-item-content {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.expand-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    margin-right: 0.5rem;
+    transition: transform 0.2s;
+    color: #6b7280;
+}
+
+.expand-icon.has-children {
+    cursor: pointer;
+}
+
+.expand-icon.expanded {
+    transform: rotate(0deg);
+}
+
+.folder-icon,
+.file-icon {
+    margin-right: 0.5rem;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
+.item-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.item-count {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-left: 0.5rem;
+}
+
+.file-status {
+    margin-left: 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* 폴더 및 파일 액션 버튼 */
+.folder-actions,
+.file-actions {
+    display: flex;
+    gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.tree-item:hover .folder-actions,
+.tree-item:hover .file-actions {
+    opacity: 1;
+}
+
+.context-menu-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #6b7280;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.context-menu-btn:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* 파일 상태별 스타일 */
+.file-item.completed {
+    opacity: 1;
+}
+
+.file-item.processing {
+    opacity: 0.7;
+    background: #fef3c7;
+}
+
+.file-item.waiting {
+    opacity: 0.6;
+    background: #dbeafe;
+}
+
+.file-item.error,
+.file-item.failed {
+    opacity: 0.8;
+    background: #fee2e2;
+}
+
+.file-item.cancelled {
+    opacity: 0.5;
+    text-decoration: line-through;
+}
+
+/* 빈 상태 */
+.empty-tree {
+    padding: 2rem;
+    text-align: center;
+    color: #6b7280;
+}
+
+.empty-tree button {
+    margin-top: 1rem;
+    padding: 0.75rem 1.5rem;
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: background-color 0.2s;
+}
+
+.empty-tree button:hover {
+    background: #1d4ed8;
+}
+
+/* 컨텍스트 메뉴 */
+.context-menu {
+    position: absolute;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    min-width: 180px;
+    z-index: 1000;
+    display: none;
+    overflow: hidden;
+}
+
+.context-menu-item {
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    color: #374151;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.context-menu-item:hover {
+    background: #f3f4f6;
+}
+
+.context-menu-item.danger {
+    color: #dc2626;
+}
+
+.context-menu-item.danger:hover {
+    background: #fee2e2;
+}
+
+/* 파일 이동 다이얼로그 */
+.move-file-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2000;
+}
+
+.dialog-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dialog-content {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 400px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.dialog-content h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    color: #374151;
+}
+
+.dialog-content p {
+    margin: 0 0 1rem 0;
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.folder-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+}
+
+.folder-option {
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: background-color 0.15s;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.875rem;
+}
+
+.folder-option:last-child {
+    border-bottom: none;
+}
+
+.folder-option:hover {
+    background: #f9fafb;
+}
+
+.dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.dialog-actions button {
+    padding: 0.5rem 1rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #374151;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.dialog-actions button:hover {
+    background: #f9fafb;
+}
+
+/* 알림 */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    font-size: 0.875rem;
+    z-index: 3000;
+    animation: slideIn 0.3s ease-out;
+}
+
+.notification.success {
+    background: #10b981;
+}
+
+.notification.error {
+    background: #ef4444;
+}
+
+.notification.info {
+    background: #2563eb;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* 업로드 모달 폴더 선택 섹션 */
+.folder-selection-section {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+}
+
+.folder-selection-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.folder-selection-header .icon {
+    font-size: 1.25rem;
+}
+
+.folder-selection-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.folder-selection-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+}
+
+.folder-select-wrapper {
+    flex: 1;
+}
+
+.folder-select-wrapper label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+}
+
+.upload-folder-select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.875rem;
+    color: #374151;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.upload-folder-select:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.folder-selection-controls .create-folder-btn {
+    padding: 0.75rem 1rem;
+    background: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+}
+
+.folder-selection-controls .create-folder-btn:hover {
+    background: #059669;
+}
+
+/* 반응형 디자인 */
+@media (max-width: 768px) {
+    .tree-item {
+        padding: 0.75rem 0.5rem;
+    }
+    
+    .folder-tree-header {
+        padding: 0.75rem;
+    }
+    
+    .dialog-content {
+        margin: 1rem;
+        width: auto;
+    }
+    
+    .folder-selection-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    
+    .folder-selection-controls .create-folder-btn {
+        width: 100%;
+    }
+}
