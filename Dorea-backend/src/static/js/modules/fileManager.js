@@ -194,6 +194,11 @@ async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = nu
     fileQueue.push(fileItem);
     updateFileList();
     
+    // 폴더 트리 새로고침 (파일 큐 추가 시)
+    if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+        window.folderTreeManager.loadFolderTree();
+    }
+    
     return fileItem;
 }
 
@@ -518,6 +523,11 @@ async function processNextFile() {
             waitingFile.file_size = waitingFile.file.size;
             
             console.log(`✅ ${waitingFile.name} 처리 완료 - ${waitingFile.segments.length}개 세그먼트`);
+            
+            // 폴더 트리 새로고침 (파일 처리 완료 시)
+            if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+                window.folderTreeManager.loadFolderTree();
+            }
         } else {
             // 서버 에러 응답 처리 개선
             let errorMessage = '파일 처리 실패';

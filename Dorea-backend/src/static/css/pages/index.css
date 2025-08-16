@@ -3088,128 +3088,99 @@ body #uploadModal .upload-actions {
 }
 
 /* 언어 일괄 설정 섹션 */
+/* === 언어 일괄 설정 (새로 작성) === */
 .bulk-language-section {
-    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
-    border: 1px solid #bae6fd;
-    border-radius: 8px;
-    padding: 1rem;
-    margin-bottom: 1.5rem;
-    position: relative;
-    overflow: hidden;
-}
-
-.bulk-language-section::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    margin: 0.5rem 0;
+    padding: 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
 }
 
 .bulk-language-header {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.bulk-language-header h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: #0f172a;
-    margin: 0;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .bulk-language-header .icon {
-    width: 32px;
-    height: 32px;
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    color: white;
+    font-size: 1.125rem;
+}
+
+.bulk-language-header h3 {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #374151;
 }
 
 .bulk-language-controls {
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.75rem;
+    align-items: end;
 }
 
 .language-select-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-    min-width: 200px;
+    /* 그리드 아이템이므로 별도 설정 불필요 */
 }
 
 .language-select-wrapper label {
-    font-size: 0.875rem;
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.8125rem;
     font-weight: 500;
     color: #374151;
-    white-space: nowrap;
 }
 
 .bulk-language-select {
-    flex: 1;
-    padding: 0.75rem 1rem;
+    width: 100%;
+    padding: 0.5rem;
     border: 1px solid #d1d5db;
-    border-radius: 8px;
-    background: #ffffff;
-    font-size: 0.875rem;
+    border-radius: 4px;
+    background: white;
+    font-size: 0.8125rem;
     color: #374151;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s;
 }
 
 .bulk-language-select:focus {
     outline: none;
-    border-color: #0ea5e9;
-    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
 .apply-bulk-language-btn {
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+    padding: 0.5rem 1rem;
+    background: #3b82f6;
     color: white;
     border: none;
-    border-radius: 8px;
-    padding: 0.75rem 1.5rem;
-    font-size: 0.875rem;
-    font-weight: 600;
+    border-radius: 4px;
+    font-size: 0.8125rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s;
     white-space: nowrap;
 }
 
 .apply-bulk-language-btn:hover {
-    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-}
-
-.apply-bulk-language-btn:active {
-    transform: translateY(0);
+    background: #2563eb;
 }
 
 /* 파일 리스트 스타일 개선 */
 #uploadFileList {
     background: #fafafa;
-    border-radius: 12px;
-    padding: 1.5rem;
+    border-radius: 8px;
+    padding: 0.75rem;
     border: 1px solid #e5e7eb;
     min-height: 200px;
 }
 
 .upload-file-item {
     background: #ffffff;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1rem;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
     border: 1px solid #e5e7eb;
     transition: all 0.2s ease;
     position: relative;
