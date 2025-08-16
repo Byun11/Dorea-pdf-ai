@@ -66,14 +66,32 @@
     <div class="container">
         <!-- 왼쪽 사이드바 -->
         <div class="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-title">문서 목록</div>
-                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
-                    + 파일 추가
-                </button>
-                <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+            <div class="folder-tree-container">
+                <div class="folder-tree-header">
+                    <div class="folder-tree-title">문서 관리</div>
+                    <div class="folder-tree-actions">
+                        <button class="create-folder-btn" onclick="folderTreeManager.createNewFolder()" title="새 폴더 만들기">
+                            📁 폴더
+                        </button>
+                        <button class="upload-btn" onclick="document.getElementById('fileInput').click()" title="파일 업로드">
+                            📄 파일
+                        </button>
+                    </div>
+                    <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+                </div>
+                <div class="folder-tree" id="folderTree">
+                    <div class="empty-tree">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📁</div>
+                        <p>폴더나 파일이 없습니다</p>
+                        <button onclick="folderTreeManager.createNewFolder()" class="create-folder-btn">
+                            새 폴더 만들기
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="file-list" id="fileList">
+            
+            <!-- 기존 파일 목록 (폴백용, 숨김 처리) -->
+            <div class="file-list" id="fileList" style="display: none;">
                 <div class="empty-state">
                     <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
                     <h3>업로드된 파일이 없습니다</h3>
@@ -482,6 +500,25 @@
                         </div>
                         <button id="applyBulkLanguageBtn" class="apply-bulk-language-btn" onclick="applyBulkLanguage()">
                             일괄 적용
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 폴더 선택 섹션 -->
+                <div class="folder-selection-section">
+                    <div class="folder-selection-header">
+                        <div class="icon">📁</div>
+                        <h3>저장 위치 선택</h3>
+                    </div>
+                    <div class="folder-selection-controls">
+                        <div class="folder-select-wrapper">
+                            <label for="uploadFolderSelect">파일을 저장할 폴더:</label>
+                            <select id="uploadFolderSelect" class="upload-folder-select">
+                                <option value="">루트 (최상위)</option>
+                            </select>
+                        </div>
+                        <button id="createFolderBtn" class="create-folder-btn" onclick="createFolderFromUpload()">
+                            📁 새 폴더
                         </button>
                     </div>
                 </div>

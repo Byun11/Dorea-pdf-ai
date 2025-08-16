@@ -2,7 +2,7 @@
    Dorea UI Module - User Interface Management
    ===================================================== */
 
-import { showNotification, formatFileSize } from './utils.js';
+import { showNotification, formatFileSize, fetchApi } from './utils.js';
 import { updateZoomControlsPosition } from './pdfViewer.js';
 
 // PDF.js 동적 import (클라이언트 사이드 텍스트 검사용)
@@ -432,6 +432,9 @@ export function showUploadModal(files) {
     
     if (!modal || !fileList) return;
     
+    // 폴더 목록 로드
+    loadFolderSelectOptions();
+    
     // 파일 리스트 생성
     fileList.innerHTML = Array.from(files).map((file, index) => `
         <div class="upload-file-item" data-file-index="${index}">
@@ -584,3 +587,114 @@ window.triggerSegmentResync = triggerSegmentResync;
 window.applyBulkLanguage = applyBulkLanguage;
 window.showUploadModalAnimated = showUploadModalAnimated;
 window.closeUploadModalAnimated = closeUploadModalAnimated;
+
+// 폴더 선택 옵션 로드
+async function loadFolderSelectOptions() {
+    const folderSelect = document.getElementById('uploadFolderSelect');
+    if (!folderSelect) return;
+    
+    try {
+        const response = await fetchApi('/api/folders');
+        if (response.ok) {
+            const data = await response.json();
+            const folders = data.data || [];
+            
+            // 폴더 옵션 생성 (계층 구조 표시)
+            folderSelect.innerHTML = '<option value="">루트 (최상위)</option>';
+            
+            // 폴더를 트리 구조로 변환하여 표시
+            const folderTree = buildFolderTree(folders);
+            addFolderOptionsRecursive(folderSelect, folderTree, 0);
+            
+        } else {
+            console.error('폴더 목록 로드 실패');
+            folderSelect.innerHTML = '<option value="">루트 (최상위)</option>';
+        }
+    } catch (error) {
+        console.error('폴더 목록 로드 오류:', error);
+        folderSelect.innerHTML = '<option value="">루트 (최상위)</option>';
+    }
+}
+
+// 폴더 트리 구조 빌드 (폴더 트리 매니저와 동일한 로직)
+function buildFolderTree(folders) {
+    const folderMap = new Map();
+    const rootFolders = [];
+    
+    // 모든 폴더를 맵에 저장
+    folders.forEach(folder => {
+        folderMap.set(folder.id, { ...folder, children: [] });
+    });
+    
+    // 부모-자식 관계 설정
+    folders.forEach(folder => {
+        const folderItem = folderMap.get(folder.id);
+        if (folder.parent_id && folderMap.has(folder.parent_id)) {
+            folderMap.get(folder.parent_id).children.push(folderItem);
+        } else {
+            rootFolders.push(folderItem);
+        }
+    });
+    
+    return rootFolders;
+}
+
+// 재귀적으로 폴더 옵션 추가
+function addFolderOptionsRecursive(selectElement, folders, depth) {
+    folders.forEach(folder => {
+        const indent = '　'.repeat(depth); // 전각 공백으로 들여쓰기
+        const option = document.createElement('option');
+        option.value = folder.id;
+        option.textContent = `${indent}📁 ${folder.name}`;
+        selectElement.appendChild(option);
+        
+        // 자식 폴더들 재귀 처리
+        if (folder.children && folder.children.length > 0) {
+            addFolderOptionsRecursive(selectElement, folder.children, depth + 1);
+        }
+    });
+}
+
+// 업로드에서 새 폴더 생성
+async function createFolderFromUpload() {
+    const folderName = prompt('새 폴더 이름을 입력하세요:');
+    if (!folderName || !folderName.trim()) return;
+    
+    try {
+        const response = await fetchApi('/api/folders', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                name: folderName.trim(),
+                parent_id: null, // 최상위에 생성
+                description: ''
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            // 폴더 목록 다시 로드
+            await loadFolderSelectOptions();
+            
+            // 새로 생성된 폴더를 선택
+            const folderSelect = document.getElementById('uploadFolderSelect');
+            if (folderSelect) {
+                folderSelect.value = data.id;
+            }
+            
+            showNotification(`폴더 "${folderName}"가 생성되었습니다.`, 'success');
+        } else {
+            const errorData = await response.json();
+            showNotification(`폴더 생성 실패: ${errorData.detail}`, 'error');
+        }
+    } catch (error) {
+        console.error('폴더 생성 오류:', error);
+        showNotification('폴더 생성 중 오류가 발생했습니다.', 'error');
+    }
+}
+
+// 글로벌 함수로 노출
+window.createFolderFromUpload = createFolderFromUpload;

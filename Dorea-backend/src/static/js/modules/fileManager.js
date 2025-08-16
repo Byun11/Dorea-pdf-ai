@@ -81,8 +81,15 @@ function setupFileEventListeners() {
     }
 }
 
-// 사용자 파일 목록 로드
+// 사용자 파일 목록 로드 (폴더 트리 매니저로 위임)
 async function loadUserFiles() {
+    // 폴더 트리 매니저가 있으면 해당 매니저 사용
+    if (window.folderTreeManager) {
+        await window.folderTreeManager.loadFolderTree();
+        return;
+    }
+    
+    // 폴백: 기존 방식으로 파일 목록 로드
     const token = localStorage.getItem('token');
     if (!token) return;
 
@@ -105,7 +112,6 @@ async function loadUserFiles() {
             }));
 
             updateFileList();
-            // 파일 로드 완료
         }
     } catch (error) {
         console.error('파일 목록 로드 오류:', error);
@@ -124,6 +130,8 @@ export async function processFiles() {
     if (!files) return;
 
     const languageSelects = document.querySelectorAll('.language-select');
+    const folderSelect = document.getElementById('uploadFolderSelect');
+    const selectedFolderId = folderSelect ? folderSelect.value : null;
     
     // 파일들을 순차적으로 처리
     for (let index = 0; index < files.length; index++) {
@@ -134,7 +142,7 @@ export async function processFiles() {
         const hasText = file.hasText !== undefined ? file.hasText : false;
         const useOcr = file.useOcr !== undefined ? file.useOcr : !hasText;
         
-        await addFileToQueue(file, language, hasText, useOcr);
+        await addFileToQueue(file, language, hasText, useOcr, selectedFolderId);
     }
 
     closeUploadModal();
@@ -158,7 +166,7 @@ function isValidUUID(uuid) {
 
 
 // 파일을 큐에 추가 (업로드 모달에서 미리 검사된 정보 사용)
-async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = null) {
+async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = null, folderId = null) {
     const generatedId = crypto.randomUUID();
     
     // UUID 검증
@@ -178,7 +186,8 @@ async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = nu
         pdfDoc: null,
         error: null,
         hasText: hasText, // 업로드 모달에서 전달받은 값 사용
-        useOcr: useOcr    // 업로드 모달에서 전달받은 값 사용
+        useOcr: useOcr,   // 업로드 모달에서 전달받은 값 사용
+        folderId: folderId // 선택된 폴더 ID
     };
 
     console.log(`✅ 새 파일 큐에 추가 - ID: ${fileItem.id}, 이름: ${fileItem.name}, 텍스트: ${hasText}, OCR: ${useOcr}`);
@@ -288,10 +297,34 @@ function updateFileList() {
 
 // 파일 선택
 export async function selectFile(fileId) {
-    const fileItem = fileQueue.find(f => f.id === fileId);
+    // 먼저 fileQueue에서 찾기
+    let fileItem = fileQueue.find(f => f.id === fileId);
+    
+    // fileQueue에 없으면 데이터베이스에서 직접 가져오기
     if (!fileItem) {
-        console.error('파일을 찾을 수 없습니다:', fileId);
-        return;
+        try {
+            const response = await fetchApi(`/files/${fileId}`);
+            if (response.ok) {
+                const data = await response.json();
+                const file = data.file;
+                
+                // 임시 fileItem 생성
+                fileItem = {
+                    id: file.id,
+                    name: file.filename,
+                    status: file.status,
+                    error: file.error_message
+                };
+            } else {
+                console.error('파일을 찾을 수 없습니다:', fileId);
+                showNotification('파일을 찾을 수 없습니다.', 'error');
+                return;
+            }
+        } catch (error) {
+            console.error('파일 로드 오류:', error);
+            showNotification('파일 로드 중 오류가 발생했습니다.', 'error');
+            return;
+        }
     }
 
     if (fileItem.status === 'completed') {
@@ -445,6 +478,11 @@ async function processNextFile() {
         formData.append('language', waitingFile.language);
         formData.append('file_id', waitingFile.id); // UUID 전송
         formData.append('use_ocr', (waitingFile.useOcr !== false).toString()); // OCR 사용 여부 (기본값: true, false일 때만 false)
+        
+        // 폴더 ID가 있으면 추가
+        if (waitingFile.folderId) {
+            formData.append('folder_id', waitingFile.folderId);
+        }
 
         console.log(`📤 파일 처리 요청 전송 - ID: ${waitingFile.id}, 이름: ${waitingFile.name}, OCR: ${waitingFile.useOcr !== false ? 'ON' : 'OFF'}`);
 

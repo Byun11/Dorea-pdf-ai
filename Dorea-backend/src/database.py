@@ -38,6 +38,7 @@ class User(Base):
     # 관계 설정
     files = relationship("PDFFile", back_populates="user", cascade="all, delete-orphan")
     chat_sessions = relationship("ChatSession", back_populates="user", cascade="all, delete-orphan")
+    folders = relationship("Folder", back_populates="user", cascade="all, delete-orphan")
 
 # PDF 파일 모델
 class PDFFile(Base):
@@ -45,6 +46,7 @@ class PDFFile(Base):
     
     id = Column(String(36), primary_key=True, index=True)  # UUID 사용
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # 사용자 FK
+    folder_id = Column(Integer, ForeignKey("folders.id"), nullable=True, index=True)  # 폴더 FK (NULL이면 루트)
     api_key_hash = Column(String(64), nullable=True, index=True)  # 마이그레이션 호환성을 위해 임시 유지
     filename = Column(String(255), nullable=False)  # 원본 파일명
     file_path = Column(String(500), nullable=False)  # 저장 경로
@@ -67,6 +69,7 @@ class PDFFile(Base):
     
     # 관계 설정
     user = relationship("User", back_populates="files")
+    folder = relationship("Folder", back_populates="files")
     chat_sessions = relationship("ChatSession", back_populates="file", cascade="all, delete-orphan")
 
 # 채팅 세션 모델
@@ -126,6 +129,30 @@ class UserSettings(Base):
     # 관계 설정
     user = relationship("User")
 
+# 폴더 모델
+class Folder(Base):
+    __tablename__ = "folders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # 사용자 FK
+    name = Column(String(255), nullable=False)  # 폴더 이름
+    parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True, index=True)  # 부모 폴더 FK (NULL이면 루트)
+    
+    # 메타데이터
+    description = Column(Text, nullable=True)  # 폴더 설명 (선택사항)
+    
+    # 타임스탬프
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # 관계 설정
+    user = relationship("User", back_populates="folders")
+    parent = relationship("Folder", remote_side=[id], backref="children")  # 자기 참조
+    files = relationship("PDFFile", back_populates="folder")
+    
+    def __repr__(self):
+        return f"<Folder(id={self.id}, name='{self.name}', user_id={self.user_id}, parent_id={self.parent_id})>"
+
 # 유틸리티 함수들
 def hash_api_key(api_key: str) -> str:
     """API 키를 SHA256으로 해시화"""
@@ -143,6 +170,95 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_folder_tree(db: SessionLocal, user_id: int, parent_id: int = None):
+    """사용자의 폴더 트리 구조를 재귀적으로 가져옴"""
+    folders = db.query(Folder).filter(
+        Folder.user_id == user_id,
+        Folder.parent_id == parent_id
+    ).order_by(Folder.name).all()
+    
+    result = []
+    for folder in folders:
+        folder_data = {
+            "id": folder.id,
+            "name": folder.name,
+            "parent_id": folder.parent_id,
+            "created_at": folder.created_at.isoformat(),
+            "updated_at": folder.updated_at.isoformat(),
+            "type": "folder",
+            "children": get_folder_tree(db, user_id, folder.id),
+            "files": []
+        }
+        
+        # 폴더 내 파일들 추가
+        files = db.query(PDFFile).filter(
+            PDFFile.user_id == user_id,
+            PDFFile.folder_id == folder.id
+        ).order_by(PDFFile.filename).all()
+        
+        for file in files:
+            folder_data["files"].append({
+                "id": file.id,
+                "filename": file.filename,
+                "file_size": file.file_size,
+                "status": file.status,
+                "language": file.language,
+                "use_ocr": file.use_ocr,
+                "created_at": file.created_at.isoformat(),
+                "type": "file"
+            })
+        
+        result.append(folder_data)
+    
+    return result
+
+def get_user_files_tree(db: SessionLocal, user_id: int):
+    """사용자의 전체 파일 트리 구조를 가져옴 (루트 파일 포함)"""
+    # 폴더 트리 가져오기
+    tree = get_folder_tree(db, user_id)
+    
+    # 루트 레벨 파일들 추가
+    root_files = db.query(PDFFile).filter(
+        PDFFile.user_id == user_id,
+        PDFFile.folder_id.is_(None)
+    ).order_by(PDFFile.filename).all()
+    
+    for file in root_files:
+        tree.append({
+            "id": file.id,
+            "filename": file.filename,
+            "file_size": file.file_size,
+            "status": file.status,
+            "language": file.language,
+            "use_ocr": file.use_ocr,
+            "created_at": file.created_at.isoformat(),
+            "type": "file",
+            "folder_id": None
+        })
+    
+    return tree
+
+def validate_folder_move(db: SessionLocal, folder_id: int, new_parent_id: int = None):
+    """폴더 이동이 순환 참조를 만들지 않는지 검증"""
+    if new_parent_id is None:
+        return True
+    
+    if folder_id == new_parent_id:
+        return False
+    
+    # 새 부모의 모든 상위 폴더들을 확인하여 순환 참조 검사
+    current_parent_id = new_parent_id
+    while current_parent_id:
+        if current_parent_id == folder_id:
+            return False
+        
+        parent_folder = db.query(Folder).filter(Folder.id == current_parent_id).first()
+        if not parent_folder:
+            break
+        current_parent_id = parent_folder.parent_id
+    
+    return True
 
 # 초기화 실행
 if __name__ == "__main__":
