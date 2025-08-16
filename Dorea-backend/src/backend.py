@@ -1573,7 +1573,6 @@ async def process_segments(
     language: str = Form("ko"),
     file_id: str = Form(...),  # UUID 받기
     use_ocr: bool = Form(False),  # OCR 사용 여부 (기본값: False)
-    folder_id: Optional[int] = Form(None),  # 폴더 ID (선택사항)
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1585,15 +1584,6 @@ async def process_segments(
         if not is_valid_uuid(file_id):
             print(f"❌ 잘못된 UUID 형식: {file_id}")
             raise HTTPException(status_code=400, detail="잘못된 파일 ID 형식입니다")
-        
-        # 2. 폴더 존재 및 권한 확인 (folder_id가 제공된 경우)
-        if folder_id is not None:
-            target_folder = db.query(Folder).filter(
-                Folder.id == folder_id,
-                Folder.user_id == current_user.id
-            ).first()
-            if not target_folder:
-                raise HTTPException(status_code=404, detail="지정된 폴더를 찾을 수 없습니다.")
         
         # 2. 기존 파일 확인 (중복 처리 방지)
         existing_file = db.query(PDFFile).filter(
@@ -1616,7 +1606,6 @@ async def process_segments(
         db_file = PDFFile(
             id=file_id,  # UUID 직접 사용
             user_id=current_user.id,
-            folder_id=folder_id,  # 폴더 ID 저장
             filename=file.filename,
             file_path="",  # 나중에 업데이트
             file_size=0,   # 나중에 업데이트
@@ -2428,6 +2417,40 @@ async def retry_file(
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"파일 재시도 중 오류가 발생했습니다: {str(e)}")
+
+@app.post("/api/files/{file_id}/cancel-processing")
+async def cancel_processing(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """파일 처리 중단 (waiting -> failed 상태로 변경)"""
+    try:
+        # 파일 존재 및 권한 확인
+        file = db.query(PDFFile).filter(
+            PDFFile.id == file_id,
+            PDFFile.user_id == current_user.id
+        ).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
+        
+        if file.status != 'waiting':
+            raise HTTPException(status_code=400, detail="대기 중인 파일만 중단할 수 있습니다.")
+        
+        # 파일 상태를 failed로 변경
+        file.status = 'failed'
+        file.error_message = '사용자에 의해 처리가 중단되었습니다.'
+        file.processed_at = None
+        
+        db.commit()
+        
+        return {"message": f"파일 '{file.filename}' 처리가 중단되었습니다."}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"파일 처리 중단 중 오류가 발생했습니다: {str(e)}")
 
 @app.delete("/api/files/{file_id}")
 async def delete_file_api(

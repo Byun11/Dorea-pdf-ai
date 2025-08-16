@@ -1,6 +1,7 @@
 /* folder-tree.css - 폴더 트리뷰 스타일 */
 
-.folder-tree-container {
+.folder-tree-container,
+.folder-tree {
     height: 100%;
     overflow-y: auto;
     border-right: 1px solid #e5e7eb;
@@ -8,7 +9,8 @@
 }
 
 /* 다크모드 지원 */
-[data-theme="dark"] .folder-tree-container {
+[data-theme="dark"] .folder-tree-container,
+[data-theme="dark"] .folder-tree {
     background: #1f2937;
     border-right: 1px solid #374151;
     color: #f9fafb;
