@@ -154,6 +154,12 @@ export async function processFiles() {
 
     closeUploadModal();
     startBackgroundProcessing();
+    
+    // 폴더 트리 새로고침 (클라이언트 큐 파일들 즉시 표시)
+    if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+        await window.folderTreeManager.loadFolderTree();
+        console.log(`📁 파일 업로드 후 폴더 트리 새로고침`);
+    }
 
     showNotification(`${files.length}개 파일이 백그라운드에서 처리됩니다.`);
 }
@@ -194,17 +200,13 @@ async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = nu
         error: null,
         hasText: hasText, // 업로드 모달에서 전달받은 값 사용
         useOcr: useOcr,   // 업로드 모달에서 전달받은 값 사용
-        folderId: folderId // 선택된 폴더 ID
+        folderId: folderId, // 선택된 폴더 ID
+        isNewFile: true    // 새 파일 플래그 (서버 DB에 아직 없음)
     };
 
     console.log(`✅ 새 파일 큐에 추가 - ID: ${fileItem.id}, 이름: ${fileItem.name}, 텍스트: ${hasText}, OCR: ${useOcr}`);
     fileQueue.push(fileItem);
     updateFileList();
-    
-    // 폴더 트리 새로고침 (파일 큐 추가 시)
-    if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
-        window.folderTreeManager.loadFolderTree();
-    }
     
     return fileItem;
 }
@@ -508,6 +510,36 @@ async function processNextFile() {
     processingQueue = true;
     waitingFile.status = 'processing';
     updateFileList();
+    
+    // 폴더 트리도 즉시 업데이트 (waiting → processing)
+    if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+        await window.folderTreeManager.loadFolderTree();
+    }
+    
+    // 기존 파일(재처리)인 경우에만 서버 DB 상태 업데이트
+    if (!waitingFile.isNewFile) {
+        try {
+            const updateResponse = await fetchApi(`/api/files/${waitingFile.id}/status`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: 'processing' })
+            });
+            
+            if (updateResponse.ok) {
+                console.log(`✅ 서버 DB 상태를 processing으로 변경: ${waitingFile.id}`);
+                // 폴더 트리 새로고침
+                if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+                    window.folderTreeManager.loadFolderTree();
+                }
+            }
+        } catch (error) {
+            console.warn('⚠️ 서버 상태 업데이트 실패:', error);
+        }
+    } else {
+        console.log(`📁 새 파일 처리 시작 - 곧 폴더 트리에 표시됨: ${waitingFile.name}`);
+    }
 
     // 파일 처리 시작
 
@@ -555,12 +587,13 @@ async function processNextFile() {
             waitingFile.status = 'completed';
             waitingFile.segments = data.segments || [];
             waitingFile.file_size = waitingFile.file.size;
+            waitingFile.isNewFile = false; // 처리 완료 후 새 파일 플래그 제거
             
             console.log(`✅ ${waitingFile.name} 처리 완료 - ${waitingFile.segments.length}개 세그먼트`);
             
-            // 폴더 트리 새로고침 (파일 처리 완료 시)
+            // 폴더 트리 즉시 새로고침 (새 파일이 폴더에 나타나도록)
             if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
-                window.folderTreeManager.loadFolderTree();
+                await window.folderTreeManager.loadFolderTree();
             }
         } else {
             // 서버 에러 응답 처리 개선
@@ -640,7 +673,7 @@ async function processNextFile() {
     
     // 폴더 트리 새로고침 (성공/실패 관계없이)
     if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
-        window.folderTreeManager.loadFolderTree();
+        await window.folderTreeManager.loadFolderTree();
     }
 
     // 다음 파일 처리
@@ -700,9 +733,10 @@ export async function retryFile(fileId) {
         }
     }
     
-    if (fileItem.status !== 'error' && fileItem.status !== 'failed') {
-        console.log('오류 상태가 아닌 파일은 재처리할 수 없습니다:', fileItem.status);
-        showNotification('오류 상태의 파일만 재처리할 수 있습니다.', 'warning');
+    // 재처리 가능한 상태 확인: error, failed, completed 모두 허용
+    if (fileItem.status !== 'error' && fileItem.status !== 'failed' && fileItem.status !== 'completed') {
+        console.log('재처리할 수 없는 파일 상태:', fileItem.status);
+        showNotification('오류 상태 또는 완료된 파일만 재처리할 수 있습니다.', 'warning');
         return;
     }
     
@@ -752,7 +786,7 @@ export async function retryFile(fileId) {
         }
     }
     
-    // 상태 초기화
+    // 상태 초기화 (처리 시작 직전까지는 대기 상태)
     fileItem.status = 'waiting';
     fileItem.error = null;
     fileItem.segments = null;
@@ -761,7 +795,35 @@ export async function retryFile(fileId) {
     // 파일 리스트 업데이트
     updateFileList();
     
-    showNotification(`${fileItem.name} 재처리를 시작합니다.`, 'info');
+    // 서버 DB 상태도 waiting으로 변경 (폴더 트리에서 waiting 상태 표시)
+    try {
+        const updateResponse = await fetchApi(`/api/files/${fileItem.id}/status`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: 'waiting' })
+        });
+        
+        if (updateResponse.ok) {
+            console.log(`✅ 서버 DB 상태를 waiting으로 변경: ${fileItem.id}`);
+            // 폴더 트리 새로고침 (waiting 상태 표시)
+            if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
+                window.folderTreeManager.loadFolderTree();
+            }
+        }
+    } catch (error) {
+        console.warn('⚠️ 서버 상태 업데이트 실패:', error);
+    }
+    
+    // 처리 상태에 따른 알림
+    if (processingQueue) {
+        showNotification(`${fileItem.name}이 대기열에 추가되었습니다.`, 'info');
+        console.log(`📋 ${fileItem.name}은 대기열에서 순서를 기다립니다 (현재 처리 중인 파일 있음)`);
+    } else {
+        showNotification(`${fileItem.name} 재처리를 시작합니다.`, 'info');
+        console.log(`🚀 ${fileItem.name} 즉시 처리 시작`);
+    }
     
     // 백그라운드 처리 시작 (이미 실행 중이 아니라면)
     if (!processingQueue) {
@@ -770,6 +832,3 @@ export async function retryFile(fileId) {
 }
 
 // Export 함수들은 index.js에서 글로벌로 노출됨
-
-// HTML onclick에서 사용할 수 있도록 전역 함수로 등록
-window.processFiles = processFiles;
