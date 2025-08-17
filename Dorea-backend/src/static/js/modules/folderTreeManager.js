@@ -34,12 +34,76 @@ async function loadFolderTree() {
         if (response.ok) {
             const data = await response.json();
             currentTree = data.data || [];
+            
+            // 클라이언트 큐의 파일들도 트리에 추가
+            addClientQueueToTree();
+            
             renderFolderTree();
         } else {
             console.error('폴더 트리 로드 실패:', response.statusText);
         }
     } catch (error) {
         console.error('폴더 트리 로드 오류:', error);
+    }
+}
+
+
+// 클라이언트 큐의 파일들을 트리에 추가
+function addClientQueueToTree() {
+    // fileManager 큐에서 파일들 가져오기
+    if (!window.fileManager || !window.fileManager.getFileQueue) {
+        return;
+    }
+    
+    const fileQueue = window.fileManager.getFileQueue();
+    if (!fileQueue || fileQueue.length === 0) {
+        return;
+    }
+    
+    console.log(`📋 클라이언트 큐에서 ${fileQueue.length}개 파일 확인 중...`);
+    
+    fileQueue.forEach(queueFile => {
+        // waiting, processing 상태의 파일들만 추가
+        if (['waiting', 'processing'].includes(queueFile.status)) {
+            // 서버 트리에 이미 있는지 확인
+            const existsInTree = findFileInTree(currentTree, queueFile.id);
+            if (!existsInTree) {
+                // 서버에 없는 클라이언트 큐 파일을 트리에 추가
+                addQueueFileToTree(queueFile);
+            }
+        }
+    });
+}
+
+// 큐 파일을 트리에 추가
+function addQueueFileToTree(queueFile) {
+    const clientFile = {
+        id: queueFile.id,
+        filename: queueFile.name,
+        status: queueFile.status,
+        file_size: queueFile.file ? queueFile.file.size : 0,
+        created_at: new Date().toISOString(),
+        language: queueFile.language,
+        type: 'file',
+        isClientQueue: true // 클라이언트 큐 파일 표시
+    };
+    
+    if (queueFile.folderId) {
+        // 특정 폴더에 추가
+        const folder = findItemInTree(currentTree, queueFile.folderId, 'folder');
+        if (folder) {
+            if (!folder.files) folder.files = [];
+            folder.files.push(clientFile);
+            console.log(`📁 클라이언트 파일 '${clientFile.filename}' → 폴더 '${folder.name}' 추가`);
+        } else {
+            // 폴더를 찾지 못했을 때 루트에 추가
+            currentTree.push(clientFile);
+            console.log(`📁 클라이언트 파일 '${clientFile.filename}' → 루트 추가 (폴더 미발견)`);
+        }
+    } else {
+        // 루트에 추가
+        currentTree.push(clientFile);
+        console.log(`📁 클라이언트 파일 '${clientFile.filename}' → 루트 추가`);
     }
 }
 
@@ -290,7 +354,8 @@ async function moveFile(fileId, newFolderId) {
 // 트리에서 아이템 찾기
 function findItemInTree(items, id, type) {
     for (const item of items) {
-        if (item.type === type && item.id === id) {
+        // ID 비교 시 타입 변환 (숫자 ↔ 문자열)
+        if (item.type === type && String(item.id) === String(id)) {
             return item;
         }
         if (item.type === 'folder' && item.children) {
@@ -439,23 +504,21 @@ function findFileInTree(tree, fileId) {
     return null;
 }
 
-// 파일 재처리
+// 파일 재처리 - fileManager 통합 처리 방식 사용
 async function reprocessFile(fileId) {
     try {
-        showNotification('파일 재처리를 시작합니다...', 'info');
+        console.log(`🔄 [folderTreeManager] reprocessFile 호출: ${fileId}`);
         
-        const response = await fetchApi(`/api/files/${fileId}/reprocess`, {
-            method: 'POST'
-        });
-        
-        if (response.ok) {
-            showNotification('파일 재처리가 시작되었습니다.', 'success');
-            // 트리 새로고침
-            await loadFolderTree();
+        // fileManager의 retryFile 함수 호출 (통합된 처리 방식)
+        if (window.fileManager && window.fileManager.retryFile) {
+            await window.fileManager.retryFile(fileId);
         } else {
-            const errorData = await response.json();
-            showNotification(`재처리 실패: ${errorData.detail}`, 'error');
+            throw new Error('fileManager.retryFile 함수를 찾을 수 없습니다');
         }
+        
+        // 트리 새로고침
+        await loadFolderTree();
+        
     } catch (error) {
         console.error('재처리 오류:', error);
         showNotification('재처리 중 오류가 발생했습니다.', 'error');

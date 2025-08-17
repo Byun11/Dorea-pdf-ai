@@ -1573,6 +1573,7 @@ async def process_segments(
     language: str = Form("ko"),
     file_id: str = Form(...),  # UUID 받기
     use_ocr: bool = Form(False),  # OCR 사용 여부 (기본값: False)
+    folder_id: Optional[str] = Form(None),  # 폴더 ID (선택사항)
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1592,10 +1593,10 @@ async def process_segments(
         ).first()
         
         if existing_file:
-            # 재처리 가능한 상태 (failed, error)인지 확인
-            if existing_file.status not in ['failed', 'error']:
+            # 재처리 가능한 상태 (failed, error, completed, waiting, processing)인지 확인
+            if existing_file.status not in ['failed', 'error', 'completed', 'waiting', 'processing']:
                 print(f"⚠️ 재처리 불가능한 상태 - 파일 ID: {file_id}, 상태: {existing_file.status}")
-                raise HTTPException(status_code=400, detail="이미 처리 중이거나 완료된 파일입니다")
+                raise HTTPException(status_code=400, detail="처리 중인 파일은 재처리할 수 없습니다")
             
             # 재처리 허용 - 기존 파일 삭제하고 새로 생성
             print(f"🔄 재처리 허용 - 파일 ID: {file_id}, 기존 상태: {existing_file.status}")
@@ -1603,6 +1604,15 @@ async def process_segments(
             db.commit()
         
         # 2. DB에 파일 정보 저장 (UUID 사용)
+        # 폴더 ID 처리
+        folder_id_int = None
+        if folder_id and folder_id.strip():
+            try:
+                folder_id_int = int(folder_id)
+                print(f"📁 폴더 ID 설정: {folder_id_int}")
+            except ValueError:
+                print(f"⚠️ 잘못된 폴더 ID 형식: {folder_id}")
+        
         db_file = PDFFile(
             id=file_id,  # UUID 직접 사용
             user_id=current_user.id,
@@ -1611,6 +1621,7 @@ async def process_segments(
             file_size=0,   # 나중에 업데이트
             language=language,
             use_ocr=use_ocr,  # OCR 설정 저장
+            folder_id=folder_id_int,  # 폴더 ID 설정
             status="processing"
         )
         
@@ -2348,14 +2359,15 @@ def cleanup():
     except Exception as e:
         print(f"Cleanup 오류 (무시됨): {e}")
 
-# 파일 재처리 및 재시도 API
-@app.post("/api/files/{file_id}/reprocess")
-async def reprocess_file(
+# 파일 상태 업데이트 API (재처리 시 사용)
+@app.put("/api/files/{file_id}/status")
+async def update_file_status(
     file_id: str,
+    status_data: dict,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """완료된 파일을 재처리"""
+    """파일 상태 업데이트 (재처리용)"""
     try:
         # 파일 존재 및 권한 확인
         file = db.query(PDFFile).filter(
@@ -2365,25 +2377,27 @@ async def reprocess_file(
         if not file:
             raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")
         
-        if file.status != 'completed':
-            raise HTTPException(status_code=400, detail="완료된 파일만 재처리할 수 있습니다.")
+        new_status = status_data.get('status')
+        if new_status not in ['waiting', 'processing', 'completed', 'error', 'failed']:
+            raise HTTPException(status_code=400, detail="유효하지 않은 상태입니다.")
         
-        # 파일 상태를 waiting으로 변경
-        file.status = 'waiting'
-        file.error_message = None
-        file.processed_at = None
-        file.segments_data = None
+        # 상태 업데이트
+        file.status = new_status
+        if new_status == 'waiting':
+            file.error_message = None
+            file.processed_at = None
         
         db.commit()
         
-        return {"message": f"파일 '{file.filename}'이 재처리 대기열에 추가되었습니다."}
+        return {"message": f"파일 상태가 {new_status}로 변경되었습니다."}
         
     except HTTPException:
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"파일 재처리 중 오류가 발생했습니다: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"상태 업데이트 중 오류가 발생했습니다: {str(e)}")
 
+# 파일 재시도 API (재처리는 클라이언트에서 통합 처리)
 @app.post("/api/files/{file_id}/retry")
 async def retry_file(
     file_id: str,
