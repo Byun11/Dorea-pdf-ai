@@ -8,6 +8,7 @@ class KnowledgeManager {
         this.selectedItem = null;
         this.embeddingData = new Map(); // 파일별 임베딩 상태 캐시
         this.treeData = null; // 파일 트리 데이터 캐시
+        this.pollingInterval = null; // 진행률 체크용 polling
         this.init();
     }
 
@@ -78,130 +79,14 @@ class KnowledgeManager {
         });
     }
 
-    // 지식 관리 페이지 HTML 생성
-    createKnowledgeHTML() {
-        return `
-            <div class="knowledge-sidebar">
-                <div class="sidebar-header">
-                    <h2 class="sidebar-title">
-                        📚 문서 트리
-                    </h2>
-                    <div class="embedding-stats" id="embeddingStats">
-                        <div class="stat-item">
-                            <div class="stat-dot completed"></div>
-                            <span id="completedCount">0 완료</span>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-dot processing"></div>
-                            <span id="processingCount">0 처리중</span>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-dot none"></div>
-                            <span id="noneCount">0 대기</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="folder-tree" id="knowledgeFolderTree">
-                    <!-- 동적으로 생성됨 -->
-                </div>
-            </div>
-
-            <div class="knowledge-main">
-                <div class="main-header">
-                    <h1 class="main-title">🧠 임베딩 관리</h1>
-                    <p class="main-subtitle">선택된 항목의 임베딩 상태를 관리하고 설정을 조정하세요</p>
-                </div>
-
-                <div class="main-content">
-                    <!-- 임베딩 설정 -->
-                    <div class="embedding-settings">
-                        <div class="settings-header">
-                            ⚙️ 임베딩 설정
-                        </div>
-                        <div class="model-grid">
-                            <div class="model-option selected" data-model="ollama">
-                                <div class="model-radio"></div>
-                                <div class="model-name">Ollama 임베딩</div>
-                                <div class="model-desc">임베딩 전용 Ollama 모델 지정</div>
-                                <span class="model-badge local">로컬</span>
-                            </div>
-                            
-                            <div class="model-option" data-model="openai">
-                                <div class="model-radio"></div>
-                                <div class="model-name">OpenAI API</div>
-                                <div class="model-desc">text-embedding-3-small</div>
-                                <span class="model-badge premium">프리미엄</span>
-                            </div>
-                        </div>
-                        
-                        <!-- Ollama 임베딩 모델 설정 -->
-                        <div class="ollama-embedding-settings" id="ollamaEmbeddingSettings">
-                            <div class="setting-group">
-                                <label for="ollamaEmbeddingModel" class="setting-label">
-                                    🤖 Ollama 임베딩 모델
-                                </label>
-                                <div class="model-input-group">
-                                    <input 
-                                        type="text" 
-                                        id="ollamaEmbeddingModel" 
-                                        class="model-input"
-                                        placeholder="예: nomic-embed-text, all-minilm"
-                                        value="nomic-embed-text"
-                                    >
-                                    <button class="test-model-btn" data-action="test-ollama-model">
-                                        🔍 테스트
-                                    </button>
-                                </div>
-                                <div class="setting-help">
-                                    임베딩 전용 모델을 지정하세요. 
-                                    <a href="https://ollama.com/library" target="_blank">모델 목록 보기</a>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- OpenAI API 설정 -->
-                        <div class="openai-embedding-settings" id="openaiEmbeddingSettings" style="display: none;">
-                            <div class="setting-group">
-                                <label for="openaiEmbeddingModel" class="setting-label">
-                                    🚀 OpenAI 임베딩 모델
-                                </label>
-                                <select id="openaiEmbeddingModel" class="model-select">
-                                    <option value="text-embedding-3-small">text-embedding-3-small (권장)</option>
-                                    <option value="text-embedding-3-large">text-embedding-3-large (고성능)</option>
-                                    <option value="text-embedding-ada-002">text-embedding-ada-002 (레거시)</option>
-                                </select>
-                                <div class="setting-help">
-                                    API 키는 메인 설정에서 관리됩니다.
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 선택된 항목 상세 정보 -->
-                    <div class="selected-item-details" id="knowledgeItemDetails">
-                        <div class="empty-state">
-                            <div class="empty-icon">🗂️</div>
-                            <div class="empty-title">항목을 선택하세요</div>
-                            <div class="empty-desc">왼쪽 트리에서 폴더나 파일을 선택하면 상세 정보가 표시됩니다</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
 
     // 지식 관리 페이지 표시
     async showKnowledgeView() {
         const container = document.getElementById('knowledgeContainer');
         if (!container) return;
 
-        // HTML 생성
-        container.innerHTML = this.createKnowledgeHTML();
+        // HTML은 이미 index.html에 있으므로 그냥 표시만 함
         container.style.display = 'grid';
-
-        // 스타일 로드 (CSS는 이미 HTML에서 로드됨)
-        // await this.loadKnowledgeStyles();
 
         // 폴더 트리 데이터 로드 및 렌더링
         await this.loadFolderTreeWithEmbedding();
@@ -593,9 +478,9 @@ class KnowledgeManager {
             
             html += '</div>';
         }
-        // 파일인 경우
-        else if (data.type === 'file') {
-            console.log('Processing file:', data); // 디버깅용
+        // 파일인 경우 (type이 없어도 파일로 처리)
+        else {
+            console.log('Processing as file:', data); // 디버깅용
             const embeddingData = this.embeddingData.get(data.id);
             const status = embeddingData?.status || 'none';
             const displayName = data.filename || data.name || '이름 없는 파일';
@@ -784,6 +669,9 @@ class KnowledgeManager {
             </div>
         ` : '';
 
+        // 상세 영역에 파일 ID 저장
+        container.dataset.fileId = fileId;
+        
         container.innerHTML = `
             <div class="detail-header">
                 <div class="detail-title">
@@ -1103,74 +991,6 @@ class KnowledgeManager {
         }
     }
 
-    // 임베딩 생성
-    async createEmbedding(fileId) {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            // 파일 정보 찾기
-            const fileInfo = this.findFileInTree(fileId);
-            if (!fileInfo) {
-                showNotification('파일 정보를 찾을 수 없습니다.', 'error');
-                return;
-            }
-
-            // 임베딩 설정이 있는지 확인
-            const settings = await this.loadEmbeddingSettings();
-            if (!settings) {
-                showNotification('먼저 임베딩 모델을 설정해주세요.', 'warning');
-                return;
-            }
-
-            const response = await fetch(`/api/knowledge/embeddings/${fileId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    filename: fileInfo.name || fileInfo.filename
-                })
-            });
-
-            if (response.ok) {
-                showNotification('임베딩 생성을 시작했습니다.', 'success');
-                // 즉시 상태 업데이트
-                this.embeddingData.set(fileId, {
-                    file_id: fileId,
-                    filename: fileInfo.name || fileInfo.filename,
-                    status: 'processing',
-                    total_chunks: 0,
-                    completed_chunks: 0,
-                    progress: 0,
-                    created_at: new Date()
-                });
-                this.refreshUI();
-            } else {
-                const error = await response.json();
-                let errorMsg = error.detail;
-                if (errorMsg.includes('처리된 PDF 파일을 찾을 수 없습니다')) {
-                    errorMsg = '이 파일은 아직 PDF 처리가 완료되지 않았습니다.\n먼저 채팅 섹션에서 파일을 업로드하고 처리를 완료해주세요.';
-                }
-                showNotification(`임베딩 생성 실패:\n${errorMsg}`, 'error');
-            }
-        } catch (error) {
-            console.error('임베딩 생성 실패:', error);
-            showNotification('임베딩 생성에 실패했습니다.', 'error');
-        }
-    }
-
-    // 임베딩 재생성
-    async regenerateEmbedding(fileId) {
-        const confirm = window.confirm('기존 임베딩을 삭제하고 다시 생성하시겠습니까?');
-        if (!confirm) return;
-
-        await this.deleteEmbedding(fileId);
-        setTimeout(() => {
-            this.createEmbedding(fileId);
-        }, 1000);
-    }
 
     // 임베딩 삭제
     async deleteEmbedding(fileId) {
@@ -1191,8 +1011,6 @@ class KnowledgeManager {
 
             if (response.ok) {
                 showNotification('임베딩이 삭제되었습니다.', 'success');
-                // 모니터링 중지
-                this.stopProgressMonitoring(fileId);
                 // 즉시 상태 업데이트
                 this.embeddingData.delete(fileId);
                 this.refreshUI();
@@ -1225,8 +1043,6 @@ class KnowledgeManager {
 
             if (response.ok) {
                 showNotification('임베딩 처리가 취소되었습니다.', 'success');
-                // 모니터링 중지
-                this.stopProgressMonitoring(fileId);
                 // 즉시 상태 업데이트
                 const embeddingData = this.embeddingData.get(fileId);
                 if (embeddingData) {
@@ -1270,13 +1086,20 @@ class KnowledgeManager {
             if (response.ok) {
                 showNotification('임베딩 생성이 시작되었습니다.', 'success');
                 
-                // 서버에서 최신 상태 가져오기
-                setTimeout(() => {
-                    this.refreshFileStatus(fileId);
-                }, 1000);
+                // 즉시 상태 업데이트
+                this.embeddingData.set(fileId, {
+                    file_id: fileId,
+                    filename: fileInfo.filename || fileInfo.name,
+                    status: 'processing',
+                    total_chunks: 0,
+                    completed_chunks: 0,
+                    progress: 0,
+                    created_at: new Date()
+                });
+                this.refreshUI();
                 
-                // 처리 중인 파일의 진행률 모니터링 시작
-                this.startProgressMonitoring(fileId);
+                // 간단한 진행률 업데이트: 임베딩 시작 후 주기적으로 상태 확인
+                this.startSimpleProgressCheck(fileId);
             } else {
                 const error = await response.json();
                 let errorMsg = error.detail;
@@ -1353,15 +1176,54 @@ class KnowledgeManager {
         // 통계 업데이트
         this.updateEmbeddingStats();
         
-        // 선택된 항목이 있으면 상세 정보도 업데이트
-        const selectedNode = document.querySelector('.tree-node.selected');
-        if (selectedNode) {
-            const isFile = selectedNode.classList.contains('file');
-            const fileId = selectedNode.onclick?.toString().match(/'([^']+)'/)?.[1];
-            if (isFile && fileId) {
-                this.updateItemDetails('file', fileId);
+        // DOM 업데이트 후 상세 정보 업데이트
+        requestAnimationFrame(() => {
+            const selectedNode = document.querySelector('.tree-node.selected');
+            
+            if (selectedNode) {
+                const fileId = selectedNode.dataset.id;
+                const type = selectedNode.dataset.type;
+                
+                if (type === 'file' && fileId) {
+                    this.updateItemDetails('file', fileId);
+                }
+            } else {
+                // 현재 상세 영역에 표시된 파일 ID 찾기
+                const detailsElement = document.getElementById('knowledgeItemDetails');
+                const currentFileId = this.getCurrentDisplayedFileId(detailsElement);
+                
+                if (currentFileId) {
+                    this.updateItemDetails('file', currentFileId);
+                }
+            }
+        });
+    }
+
+    // 현재 상세 영역에 표시된 파일 ID 가져오기
+    getCurrentDisplayedFileId(detailsElement) {
+        if (!detailsElement) return null;
+        
+        // 상세 영역에 data-file-id 속성이 있는지 확인
+        const fileId = detailsElement.dataset.fileId;
+        if (fileId) return fileId;
+        
+        // action-btn 요소에서 data-file-id 찾기
+        const actionBtn = detailsElement.querySelector('.action-btn[data-file-id]');
+        if (actionBtn && actionBtn.dataset.fileId) {
+            console.log('🔍 액션 버튼에서 파일 ID 찾음:', actionBtn.dataset.fileId);
+            return actionBtn.dataset.fileId;
+        }
+        
+        // HTML 내용에서 파일 ID 추출 (embeddingData의 키와 매칭)
+        for (let [id, data] of this.embeddingData.entries()) {
+            if (detailsElement.innerHTML.includes(data.filename)) {
+                console.log('🔍 파일명으로 파일 ID 찾음:', id, data.filename);
+                return id;
             }
         }
+        
+        console.log('❌ getCurrentDisplayedFileId: 파일 ID를 찾을 수 없음');
+        return null;
     }
 
     // 폴더의 모든 파일 임베딩
@@ -1504,108 +1366,34 @@ class KnowledgeManager {
         }
     }
 
-    // 특정 파일의 최신 상태 확인
-    async refreshFileStatus(fileId) {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
 
-            const response = await fetch(`/api/knowledge/embeddings/${fileId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const embedding = await response.json();
-                if (embedding) {
-                    this.embeddingData.set(fileId, {
-                        ...embedding,
-                        created_at: new Date(embedding.created_at),
-                        updated_at: new Date(embedding.updated_at)
-                    });
-                } else {
-                    // 임베딩이 삭제된 경우
-                    this.embeddingData.delete(fileId);
-                }
-                this.refreshUI();
-            }
-        } catch (error) {
-            console.error('파일 상태 확인 실패:', error);
-        }
-    }
-
-    // 진행률 모니터링 시작
-    startProgressMonitoring(fileId) {
-        // 기존 모니터링이 있으면 정리
-        if (this.progressTimers && this.progressTimers.has(fileId)) {
-            clearInterval(this.progressTimers.get(fileId));
-        }
+    // 간단한 진행률 체크 (임베딩 처리 중에만 활성화)
+    startSimpleProgressCheck(fileId) {
+        // 2초 후부터 시작해서 2초마다 최대 30분까지 확인
+        let checkCount = 0;
+        const maxChecks = 900; // 30분 (2초 * 900회)
         
-        if (!this.progressTimers) {
-            this.progressTimers = new Map();
-        }
-
-        // 3초마다 진행률 확인
-        const timer = setInterval(async () => {
-            await this.checkFileProgress(fileId);
-        }, 3000);
-
-        this.progressTimers.set(fileId, timer);
-    }
-
-    // 진행률 모니터링 중지
-    stopProgressMonitoring(fileId) {
-        if (this.progressTimers && this.progressTimers.has(fileId)) {
-            clearInterval(this.progressTimers.get(fileId));
-            this.progressTimers.delete(fileId);
-        }
-    }
-
-    // 파일 진행률 확인
-    async checkFileProgress(fileId) {
-        try {
-            const token = localStorage.getItem('token');
-            if (!token) return;
-
-            const response = await fetch(`/api/knowledge/embeddings/${fileId}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (response.ok) {
-                const embedding = await response.json();
-                if (embedding) {
-                    const currentData = this.embeddingData.get(fileId);
-                    const newProgress = embedding.progress;
-                    const newStatus = embedding.status;
-
-                    // 상태나 진행률이 변경된 경우에만 업데이트
-                    if (!currentData || 
-                        currentData.progress !== newProgress || 
-                        currentData.status !== newStatus) {
-                        
-                        this.embeddingData.set(fileId, {
-                            ...embedding,
-                            created_at: new Date(embedding.created_at),
-                            updated_at: new Date(embedding.updated_at)
-                        });
-                        
-                        this.refreshUI();
-                    }
-
-                    // 완료되거나 실패한 경우 모니터링 중지
-                    if (newStatus === 'completed' || newStatus === 'failed' || newStatus === 'cancelled') {
-                        this.stopProgressMonitoring(fileId);
-                    }
-                }
+        const checkProgress = async () => {
+            if (checkCount >= maxChecks) {
+                console.log(`⏰ 진행률 체크 시간 초과: ${fileId}`);
+                return;
             }
-        } catch (error) {
-            console.error('진행률 확인 실패:', error);
-        }
+            
+            console.log(`🔄 진행률 체크 중... (${checkCount + 1}/${maxChecks}): ${fileId}`);
+            await this.refreshFileStatus(fileId);
+            const embeddingData = this.embeddingData.get(fileId);
+            
+            if (embeddingData && ['completed', 'failed', 'cancelled'].includes(embeddingData.status)) {
+                console.log(`✅ 임베딩 완료/종료: ${fileId} (${embeddingData.status})`);
+                return;
+            }
+            
+            checkCount++;
+            setTimeout(checkProgress, 2000); // 2초 후 다시 체크
+        };
+        
+        // 2초 후 첫 체크 시작
+        setTimeout(checkProgress, 2000);
     }
 
     // 유틸리티 함수들
