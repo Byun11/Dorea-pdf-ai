@@ -11,6 +11,7 @@ import * as Chat from './modules/chat.js';
 import * as OllamaManager from './modules/ollamaManager.js';
 import * as ShortcutManager from './modules/shortcutManager.js';
 import './modules/folderTreeManager.js'; // 글로벌 객체로 등록됨
+import { knowledgeManager } from './modules/knowledgeManager.js';
 
 // 페이지 로드시 초기화
 window.addEventListener('DOMContentLoaded', async () => {
@@ -38,6 +39,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     setupLandingOverlayEvents();
     
     // 초기 상태에서 AI 패널 숨김 (HTML에서 이미 hidden 클래스로 설정되어 있음)
+    
+    // 네비게이션 탭 이벤트 리스너 설정
+    setupNavigationTabs();
     
     // Dorea 모듈화된 시스템 로드 완료
 });
@@ -599,6 +603,82 @@ function toggleAdvancedOptions() {
                 icon.classList.add('rotated');
             }, 10);
         }
+    }
+}
+
+// ===== 페이지 전환 관리 =====
+
+// 현재 뷰 상태
+let currentView = 'chat';
+
+// 네비게이션 탭 이벤트 리스너 설정
+function setupNavigationTabs() {
+    const navTabs = document.querySelectorAll('.nav-tab');
+    
+    navTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            const view = e.currentTarget.dataset.view;
+            if (view) {
+                switchView(view);
+            }
+        });
+    });
+}
+
+// 뷰 전환 함수 (전역으로 노출)
+window.switchView = function(view) {
+    if (currentView === view) return;
+    
+    console.log(`🔄 페이지 전환: ${currentView} → ${view}`);
+    
+    // 탭 버튼 상태 업데이트
+    updateNavTabs(view);
+    
+    // 뷰 전환
+    switch (view) {
+        case 'chat':
+            showChatView();
+            break;
+        case 'knowledge':
+            showKnowledgeView();
+            break;
+    }
+    
+    currentView = view;
+};
+
+// 채팅 뷰 표시
+function showChatView() {
+    // 기존 컨테이너들 표시
+    const container = document.querySelector('.container');
+    const knowledgeContainer = document.getElementById('knowledgeContainer');
+    
+    if (container) container.style.display = 'flex';
+    if (knowledgeContainer) knowledgeContainer.style.display = 'none';
+}
+
+// 지식 관리 뷰 표시
+async function showKnowledgeView() {
+    // 기존 컨테이너들 숨기기
+    const container = document.querySelector('.container');
+    const knowledgeContainer = document.getElementById('knowledgeContainer');
+    
+    if (container) container.style.display = 'none';
+    
+    // 지식 관리 뷰 표시
+    if (window.knowledgeManager) {
+        await window.knowledgeManager.showKnowledgeView();
+    }
+}
+
+// 네비게이션 탭 상태 업데이트
+function updateNavTabs(activeView) {
+    const chatTab = document.getElementById('chatTab');
+    const knowledgeTab = document.getElementById('knowledgeTab');
+    
+    if (chatTab && knowledgeTab) {
+        chatTab.classList.toggle('active', activeView === 'chat');
+        knowledgeTab.classList.toggle('active', activeView === 'knowledge');
     }
 }
 

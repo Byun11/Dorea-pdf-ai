@@ -1096,6 +1096,84 @@ body.resizing .resize-handle {
     }
 }
 
+/* RAG 토글 버튼 스타일 */
+.rag-toggle-btn, .image-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: 8px 16px;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: var(--space-2);
+    user-select: none;
+    position: relative;
+}
+
+.rag-toggle-btn:hover, .image-toggle-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+    color: var(--text-primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.rag-toggle-btn.active, .image-toggle-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.rag-toggle-btn.active:hover, .image-toggle-btn.active:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+
+.toggle-icon {
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+}
+
+.toggle-text {
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+/* RAG 상태 표시 */
+.rag-status {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    opacity: 0.8;
+}
+
+.rag-status.active {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+/* 반응형 - 작은 화면에서는 텍스트 숨김 */
+@media (max-width: 768px) {
+    .toggle-text {
+        display: none;
+    }
+    
+    .rag-toggle-btn, .image-toggle-btn {
+        padding: 8px 12px;
+        min-width: 44px;
+        justify-content: center;
+    }
+}
+
 
 .message-avatar {
     width: 36px;

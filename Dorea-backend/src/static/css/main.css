@@ -11,9 +11,11 @@
 @import url('./components/buttons.css');
 @import url('./components/forms.css');
 @import url('./components/folder-tree.css');
+@import url('./components/navigation.css');
 
 /* Page Styles */
 @import url('./pages/index.css');
+@import url('./knowledge.css');
 
 /* =====================================================
    모던 랜딩 오버레이 - 기존 디자인 시스템 기반

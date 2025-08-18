@@ -371,6 +371,7 @@ let currentChatSession = null;
 let conversationHistory = [];
 let isTyping = false;
 let allChatSessions = [];
+let ragModeEnabled = false; // RAG 모드 상태
 
 // 채팅 시스템 초기화
 export function init() {
@@ -379,6 +380,9 @@ export function init() {
     
     // 저장된 글자 크기를 기존 메시지들에 적용
     applyFontSizeToAllMessages();
+    
+    // RAG 토글 버튼 이벤트 리스너
+    setupRagToggle();
     
     // 파일 로드 이벤트 리스너
     document.addEventListener('fileLoaded', (event) => {
@@ -398,6 +402,41 @@ export function init() {
     // 세그먼트 이미지 첨부 이벤트 리스너 (중복 등록 방지)
     document.removeEventListener('segmentImagesAttached', handleSegmentImagesEvent);
     document.addEventListener('segmentImagesAttached', handleSegmentImagesEvent);
+}
+
+// RAG 토글 설정
+function setupRagToggle() {
+    // 글로벌 함수로 등록
+    window.toggleRagMode = function() {
+        ragModeEnabled = !ragModeEnabled;
+        console.log('🔍 RAG 모드:', ragModeEnabled ? '활성화' : '비활성화');
+        
+        // 버튼 스타일 업데이트
+        const ragToggleBtn = document.getElementById('ragToggleBtn');
+        if (ragToggleBtn) {
+            if (ragModeEnabled) {
+                ragToggleBtn.classList.add('active');
+            } else {
+                ragToggleBtn.classList.remove('active');
+            }
+        }
+        
+        // 채팅 인풋 플레이스홀더 변경
+        const chatInput = document.getElementById('chatInput');
+        if (chatInput) {
+            chatInput.placeholder = ragModeEnabled ? 
+                '지식 베이스에서 검색하여 답변합니다...' : 
+                '선택한 세그먼트에 대해 질문하세요...';
+        }
+        
+        // 상태 표시 메시지
+        import('./utils.js').then(({ showNotification }) => {
+            showNotification(
+                ragModeEnabled ? 'RAG 모드가 활성화되었습니다' : 'RAG 모드가 비활성화되었습니다',
+                'info'
+            );
+        });
+    };
 }
 
 // 채팅 이벤트 리스너 설정
@@ -459,10 +498,199 @@ export async function sendMessage(customMessage = null) {
     await processMessage(message, selectedSegments);
 }
 
-// 메시지 처리 (이미지 모드 자동 감지)
+// RAG 메시지 처리
+async function processRagMessage(message) {
+    addMessage(message, true);
+    
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.value = '';
+        input.style.height = 'auto';
+    }
+    const sendBtn = document.getElementById('sendBtn');
+    if (sendBtn) sendBtn.disabled = true;
+
+    isTyping = true;
+    const typingIndicator = addTypingIndicator();
+
+    try {
+        // 1. 벡터 검색 수행
+        console.log('🔍 [DEBUG] RAG 벡터 검색 시작:', message);
+        
+        const searchResponse = await fetchApi('/api/knowledge/search', {
+            method: 'POST',
+            body: JSON.stringify({
+                query: message,
+                top_k: 5
+            })
+        });
+
+        if (!searchResponse.ok) {
+            throw new Error('벡터 검색 실패');
+        }
+
+        const searchData = await searchResponse.json();
+        const similarDocs = searchData.results || [];
+        
+        console.log('🔍 [DEBUG] 벡터 검색 결과:', similarDocs.length, '개 문서');
+
+        // 2. 검색 결과를 컨텍스트로 사용하여 GPT 요청
+        const contextTexts = similarDocs.map(doc => doc.text).join('\n\n');
+        
+        // 현재 세션의 대화 히스토리 가져오기
+        let conversationHistory = [];
+        try {
+            const historyResponse = await fetchApi(`/chats/${currentChatSession.sessionId}/messages`);
+            if (historyResponse.ok) {
+                const historyData = await historyResponse.json();
+                const recentMessages = historyData.messages.slice(-3);
+                conversationHistory = recentMessages.map(msg => ({
+                    role: msg.is_user ? 'user' : 'assistant',
+                    content: msg.content
+                }));
+            }
+        } catch (error) {
+            console.warn('대화 히스토리 로드 실패:', error);
+        }
+
+        // RAG 프롬프트 구성
+        const ragPrompt = `다음은 문서에서 검색된 관련 내용입니다:
+
+${contextTexts}
+
+위 내용을 바탕으로 다음 질문에 답변해주세요: ${message}
+
+답변 시 주의사항:
+- 검색된 내용에 근거하여 정확하게 답변하세요
+- 관련 정보가 부족하다면 솔직히 말해주세요
+- 가능하면 출처 페이지를 언급해주세요`;
+
+        // API 요청 데이터 구성
+        const requestBody = {
+            segments: [{
+                type: 'text',
+                content: contextTexts,
+                page: 'RAG Context'
+            }],
+            query: ragPrompt,
+            conversation_history: conversationHistory,
+            rag_mode: true
+        };
+
+        console.log('🔍 [DEBUG] RAG 요청 데이터:');
+        console.log(`  - 검색된 문서: ${similarDocs.length}개`);
+        console.log(`  - 컨텍스트 길이: ${contextTexts.length}자`);
+
+        // 스트리밍 API 호출
+        const response = await fetchApi('/gpt/multi-segment-stream', {
+            method: 'POST',
+            body: JSON.stringify(requestBody)
+        });
+
+        typingIndicator.remove();
+        const messageEl = addMessage('', false, true);
+        const contentEl = messageEl.querySelector('.message-content');
+
+        // 검색 결과 정보 추가
+        if (similarDocs.length > 0) {
+            const searchInfo = `🔍 **검색된 관련 문서:** ${similarDocs.length}개\n\n`;
+            typeTextWithEffect(contentEl, searchInfo);
+        }
+
+        // 스트리밍 응답 처리
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const json = JSON.parse(line.substring(6));
+                        if (json.type === 'chunk' && json.content) {
+                            typeTextWithEffect(contentEl, json.content);
+                        } else if (json.type === 'info' && json.message) {
+                            typeTextWithEffect(contentEl, `\n\nℹ️ ${json.message}\n\n`);
+                        } else if (json.type === 'error') {
+                            contentEl.textContent += `❌ ${json.error}`;
+                            contentEl.style.color = '#dc2626';
+                        } else if (json.type === 'done') {
+                            // 최종 렌더링
+                            const finalText = contentEl.dataset.rawText || '';
+                            if (finalText) {
+                                try {
+                                    const finalParsed = parseMarkdownWithMath(finalText);
+                                    contentEl.innerHTML = finalParsed;
+                                    
+                                    if (typeof renderMathInElement !== 'undefined') {
+                                        try {
+                                            renderMathInElement(contentEl, {
+                                                delimiters: [
+                                                    {left: '$$', right: '$$', display: true},
+                                                    {left: '$', right: '$', display: false},
+                                                    {left: '\\[', right: '\\]', display: true},
+                                                    {left: '\\(', right: '\\)', display: false}
+                                                ],
+                                                throwOnError: false,
+                                                errorColor: 'var(--error, #ef4444)',
+                                                strict: false,
+                                                trust: true,
+                                                macros: {
+                                                    "\\hbar": "\\hslash",
+                                                    "\\mathbf": "\\boldsymbol",
+                                                    "\\partial": "\\partial"
+                                                }
+                                            });
+                                        } catch (error) {
+                                            console.warn('최종 KaTeX 렌더링 오류:', error);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.warn('최종 마크다운 파싱 오류:', error);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('스트림 파싱 오류:', e);
+                    }
+                }
+            }
+        }
+
+        messageEl.classList.remove('streaming');
+
+        // 메시지 저장
+        await saveMessageToDB(message, true, null);
+        await saveMessageToDB(contentEl.dataset.rawText || contentEl.textContent, false, null);
+
+    } catch (error) {
+        console.error('RAG 채팅 오류:', error);
+        if (typingIndicator) typingIndicator.remove();
+        addMessage(`죄송합니다. RAG 검색 중 오류가 발생했습니다: ${error.message}`, false);
+        showNotification('RAG 검색에 실패했습니다.', 'error');
+    } finally {
+        isTyping = false;
+    }
+}
+
+// 메시지 처리 (이미지 모드 자동 감지 + RAG 모드)
 async function processMessage(message, selectedSegments = null) {
     if (!selectedSegments) {
         selectedSegments = getSelectedSegments();
+    }
+
+    // RAG 모드 체크
+    if (ragModeEnabled) {
+        console.log('🔍 [DEBUG] RAG 모드로 메시지 처리');
+        await processRagMessage(message);
+        return;
     }
 
     // 이미지 모드 체크

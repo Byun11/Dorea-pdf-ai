@@ -12,6 +12,7 @@ from sqlalchemy.sql import func
 # 내부 모듈
 from database import get_db, PDFFile, ChatSession, ChatMessage, UserSettings, User, Folder, hash_api_key, create_database, get_user_files_tree, validate_folder_move
 from auth import verify_api_key, create_openai_client, get_current_user, authenticate_user, create_access_token, get_password_hash
+from knowledge_routes import router as knowledge_router
 
 # 외부 라이브러리
 import httpx
@@ -51,6 +52,9 @@ OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://ollama:11434")
 # FastAPI 앱 생성
 app = FastAPI(title="PDF AI 분석 시스템")
 create_database()
+
+# 라우터 등록
+app.include_router(knowledge_router)
 
 
 # 현재 파일 위치를 기준으로 static 디렉토리 절대 경로 계산

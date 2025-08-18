@@ -1,6 +1,7 @@
 # 데이터베이스 파일
 DATABASE/pdf_ai_system.db
 DATABASE/files/
+DATABASE/chroma_db/
 
 # 환경 설정
 .env
@@ -56,3 +57,10 @@ ollama_data/
 
 # Node modules (만약 프론트엔드에 사용한다면)
 node_modules/
+
+# Claude Code 관련 파일들
+.claude/
+.serena/
+
+# 목업 파일들 (개발용)
+*-mockup.html
