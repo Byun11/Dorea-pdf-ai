@@ -593,7 +593,61 @@ async function renderDualPages(pageNum, scale) {
     }
 }
 
-// 연속 스크롤 페이지 렌더링 (크롬 스타일)
+// 개별 페이지를 뷰어에 렌더링하는 헬퍼 함수 (비동기, 논블로킹)
+async function renderSinglePageIntoViewer(pageNum, scale, viewer) {
+    try {
+        const page = await pdfDoc.getPage(pageNum);
+        const viewport = page.getViewport({ scale });
+
+        const pageContainer = document.createElement('div');
+        pageContainer.className = 'pdf-page-container';
+        pageContainer.style.position = 'relative';
+        pageContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
+        pageContainer.dataset.pageNumber = pageNum;
+
+        const canvas = document.createElement('canvas');
+        canvas.id = `pdfCanvas${pageNum}`;
+        canvas.setAttribute('data-page-number', pageNum);
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.display = 'block';
+
+        const segmentOverlay = document.createElement('div');
+        segmentOverlay.className = 'segment-overlay';
+        segmentOverlay.id = `segmentOverlay${pageNum}`;
+        segmentOverlay.style.position = 'absolute';
+        segmentOverlay.style.top = '0';
+        segmentOverlay.style.left = '0';
+        segmentOverlay.style.width = `${viewport.width}px`;
+        segmentOverlay.style.height = `${viewport.height}px`;
+        segmentOverlay.style.pointerEvents = 'auto';
+
+        pageContainer.appendChild(canvas);
+        pageContainer.appendChild(segmentOverlay);
+        viewer.appendChild(pageContainer);
+
+        const context = canvas.getContext('2d');
+        if (!context) {
+            throw new Error(`캔버스 ${pageNum} 컨텍스트를 가져올 수 없습니다.`);
+        }
+        
+        await page.render({ canvasContext: context, viewport }).promise;
+
+        const event = new CustomEvent('pageRendered', {
+            detail: { 
+                viewport, 
+                pageNum: pageNum,
+                overlayId: `segmentOverlay${pageNum}`,
+                viewMode: 'continuous'
+            }
+        });
+        document.dispatchEvent(event);
+    } catch (error) {
+        console.error(`페이지 ${pageNum} 렌더링 오류 (비동기):`, error);
+    }
+}
+
+// 연속 스크롤 페이지 렌더링 (개선된 논블로킹 방식)
 async function renderContinuousPages(scale) {
     try {
         const pdfContainer = document.getElementById('pdfContainer');
@@ -602,15 +656,8 @@ async function renderContinuousPages(scale) {
             return;
         }
 
-        // 기존 뷰어 정리
         clearPdfContainer();
         
-        // PDF 컨테이너의 스크롤을 비활성화하고 뷰어가 전체를 차지하도록 설정
-        pdfContainer.style.overflow = 'hidden';
-        pdfContainer.style.padding = '0';
-        pdfContainer.style.display = 'block';
-        
-        // 새로운 뷰어 생성
         const viewer = document.createElement('div');
         viewer.className = 'pdf-viewer continuous-scroll';
         viewer.style.position = 'absolute';
@@ -624,89 +671,41 @@ async function renderContinuousPages(scale) {
         viewer.style.flexDirection = 'column';
         viewer.style.alignItems = 'center';
         viewer.style.gap = '20px';
-        viewer.style.padding = '70px 20px 20px 20px'; // 상단 툴바 공간 확보
+        viewer.style.padding = '70px 20px 20px 20px';
         viewer.style.background = 'var(--bg-tertiary, #f8f9fa)';
         
         pdfContainer.appendChild(viewer);
 
-        // 컨트롤 UI 추가 (전체 문서에 컨트롤이 없을 때만)
         if (!document.querySelector('.zoom-controls')) {
             addPdfControls();
         }
 
-        // 모든 페이지를 순차적으로 렌더링
-        const totalPages = pdfDoc.numPages;
-        const pageElements = [];
-        
-        for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-            const page = await pdfDoc.getPage(pageNum);
-            const viewport = page.getViewport({ scale });
-
-            // 페이지 컨테이너 생성
-            const pageContainer = document.createElement('div');
-            pageContainer.className = 'pdf-page-container';
-            pageContainer.style.position = 'relative';
-            pageContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
-            pageContainer.dataset.pageNumber = pageNum;
-
-            // 캔버스 생성
-            const canvas = document.createElement('canvas');
-            canvas.id = `pdfCanvas${pageNum}`;
-            canvas.setAttribute('data-page-number', pageNum);
-            canvas.width = viewport.width;
-            canvas.height = viewport.height;
-            canvas.style.display = 'block';
-
-            // 세그먼트 오버레이 생성
-            const segmentOverlay = document.createElement('div');
-            segmentOverlay.className = 'segment-overlay';
-            segmentOverlay.id = `segmentOverlay${pageNum}`;
-            segmentOverlay.style.position = 'absolute';
-            segmentOverlay.style.top = '0';
-            segmentOverlay.style.left = '0';
-            segmentOverlay.style.width = `${viewport.width}px`;
-            segmentOverlay.style.height = `${viewport.height}px`;
-            segmentOverlay.style.pointerEvents = 'auto';
-
-            pageContainer.appendChild(canvas);
-            pageContainer.appendChild(segmentOverlay);
-            viewer.appendChild(pageContainer);
-            
-            
-            pageElements.push(pageContainer);
-
-            // 페이지 렌더링
-            const context = canvas.getContext('2d');
-            if (!context) {
-                throw new Error(`캔버스 ${pageNum} 컨텍스트를 가져올 수 없습니다.`);
-            }
-            
-            await page.render({ canvasContext: context, viewport }).promise;
-
-            // 세그먼트 오버레이 업데이트 이벤트 발생
-            const event = new CustomEvent('pageRendered', {
-                detail: { 
-                    viewport, 
-                    pageNum: pageNum,
-                    overlayId: `segmentOverlay${pageNum}`,
-                    viewMode: 'continuous'
-                }
-            });
-            document.dispatchEvent(event);
-        }
-
-        // 현재 스케일 적용 (CSS transform 사용)
-        if (currentScale !== 1.0) {
-            applyContinuousZoom();
-        }
-
-        // 스크롤 이벤트 리스너 추가 (현재 페이지 추적)
         viewer.addEventListener('scroll', () => {
             updateCurrentPageFromScroll();
         });
 
         updateZoomDisplay();
         updatePageControls();
+
+        const totalPages = pdfDoc.numPages;
+
+        let pageToRender = 1;
+        function renderNextPage() {
+            if (pageToRender > totalPages) {
+                if (currentScale !== 1.0) {
+                    applyContinuousZoom();
+                }
+                return;
+            }
+            
+            requestAnimationFrame(async () => {
+                await renderSinglePageIntoViewer(pageToRender, scale, viewer);
+                pageToRender++;
+                renderNextPage();
+            });
+        }
+
+        renderNextPage();
 
     } catch (error) {
         console.error('연속 스크롤 렌더링 오류:', error);
@@ -926,49 +925,45 @@ export async function rerenderCurrentView() {
     }
 }
 
-// 줌 기능들 - 개선된 디바운싱 적용 (한국인 연타 대응 + 기존 방식 병존)
+export function showPdfControls() {
+    const controls = document.querySelector('.zoom-controls');
+    if (controls) {
+        controls.style.display = 'flex';
+        controls.style.visibility = 'visible';
+    }
+}
+
+export function hidePdfControls() {
+    const controls = document.querySelector('.zoom-controls');
+    if (controls) {
+        controls.style.display = 'none';
+        controls.style.visibility = 'hidden';
+    }
+}
+
+// 줌 기능들 - 개선된 디바운싱 적용
 export function zoomIn() {
     const newScale = Math.min(currentScale + scaleStep, maxScale);
     if (newScale !== currentScale) {
         autoFit = false;
         currentScale = newScale;
-        pendingScale = newScale;
         
-        // 🚀 새로운 디바운서 사용 (기존 방식도 유지)
         globalDebouncer.debounce('zoom', {
             immediate: () => {
-                // UI 즉시 업데이트 (사용자 피드백)
                 updateZoomDisplay();
             },
             final: () => {
                 if (viewMode === 'continuous') {
-                    // 렌더링 큐와 연동
                     globalRenderQueue.clearLowPriorityTasks();
                     applyContinuousZoom();
                 } else {
-                    // 단일/듀얼 페이지도 연속스크롤 방식 적용
                     applyScaleToCurrentView();
                 }
-                pendingScale = null;
             }
         }, 500, { 
             rapidFireDelay: 800, // 연타시 더 오래 기다림
             immediate: true 
         });
-        
-        // 기존 방식도 백업으로 유지
-        clearTimeout(zoomDebounceTimer);
-        zoomDebounceTimer = setTimeout(() => {
-            if (pendingScale && !globalDebouncer.isPending('zoom')) {
-                // 새 디바운서가 실패했을 때만 기존 방식 사용
-                if (viewMode === 'continuous') {
-                    applyContinuousZoom();
-                } else {
-                    applyScaleToCurrentView();
-                }
-                pendingScale = null;
-            }
-        }, 1000);
     }
 }
 
@@ -977,9 +972,7 @@ export function zoomOut() {
     if (newScale !== currentScale) {
         autoFit = false;
         currentScale = newScale;
-        pendingScale = newScale;
         
-        // 🚀 새로운 디바운서 사용 (zoomIn과 동일한 패턴)
         globalDebouncer.debounce('zoom', {
             immediate: () => {
                 updateZoomDisplay();
@@ -991,25 +984,11 @@ export function zoomOut() {
                 } else {
                     applyScaleToCurrentView();
                 }
-                pendingScale = null;
             }
         }, 500, { 
             rapidFireDelay: 800,
             immediate: true 
         });
-        
-        // 기존 방식 백업
-        clearTimeout(zoomDebounceTimer);
-        zoomDebounceTimer = setTimeout(() => {
-            if (pendingScale && !globalDebouncer.isPending('zoom')) {
-                if (viewMode === 'continuous') {
-                    applyContinuousZoom();
-                } else {
-                    applyScaleToCurrentView();
-                }
-                pendingScale = null;
-            }
-        }, 1000);
     }
 }
 
@@ -1354,6 +1333,9 @@ export function hideViewer() {
         pdfContainer.innerHTML = '';
         uploadZone.style.display = 'block';
     }
+    
+    // Reset the internal state
+    pdfDoc = null;
 }
 
 // 뷰 모드 설정

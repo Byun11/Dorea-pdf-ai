@@ -227,9 +227,7 @@ function hideLandingOverlay() {
     const landingOverlay = document.getElementById('landingOverlay');
     if (landingOverlay) {
         landingOverlay.classList.add('hidden');
-        setTimeout(() => {
-            landingOverlay.style.display = 'none';
-        }, 300);
+        landingOverlay.style.display = 'none'; // 즉시 사라지도록 수정
         console.log('📄 랜딩 오버레이 숨김');
     }
 }
@@ -650,6 +648,13 @@ function showChatView() {
     
     if (container) container.style.display = 'flex';
     if (knowledgeContainer) knowledgeContainer.style.display = 'none';
+
+    // PDF 로드 상태에 따라 컨트롤 바 표시/숨김
+    if (PDFViewer.getPdfDoc()) {
+        PDFViewer.showPdfControls();
+    } else {
+        PDFViewer.hidePdfControls();
+    }
 }
 
 // 지식 관리 뷰 표시
@@ -664,6 +669,9 @@ async function showKnowledgeView() {
     if (window.knowledgeManager) {
         await window.knowledgeManager.showKnowledgeView();
     }
+
+    // 지식 뷰에서는 항상 PDF 컨트롤 바 숨김
+    PDFViewer.hidePdfControls();
 }
 
 // 네비게이션 탭 상태 업데이트
