@@ -26,57 +26,35 @@ class KnowledgeManager {
         const container = document.getElementById('knowledgeContainer');
         if (!container) return;
 
-        // 트리 노드 클릭 이벤트 (이벤트 위임)
+        // 이벤트 리스너가 중복 등록되는 것을 방지
+        if (this.knowledgeEventListenersAttached) {
+            return;
+        }
+
         container.addEventListener('click', (e) => {
-            const treeNode = e.target.closest('.tree-node');
-            if (treeNode) {
-                const type = treeNode.dataset.type;
-                const id = treeNode.dataset.id;
-                if (type && id) {
-                    this.selectKnowledgeItem(treeNode, type, id);
-                }
-                return;
-            }
+            const target = e.target;
 
             // 모델 선택 옵션 클릭
-            const modelOption = e.target.closest('.model-option');
+            const modelOption = target.closest('.model-option');
             if (modelOption) {
                 this.selectEmbeddingModel(modelOption);
                 return;
             }
 
-            // 액션 버튼 클릭 (파일 액션)
-            const actionBtn = e.target.closest('.action-btn[data-action]');
-            if (actionBtn) {
-                const action = actionBtn.dataset.action;
-                const fileId = actionBtn.dataset.fileId;
-                if (action && fileId) {
-                    this.handleFileAction(action, fileId);
-                }
-                return;
-            }
-
-            // 폴더 액션 버튼 클릭
-            const folderActionBtn = e.target.closest('.action-btn[data-folder-action]');
-            if (folderActionBtn) {
-                const action = folderActionBtn.dataset.folderAction;
-                const folderId = folderActionBtn.dataset.folderId;
-                if (action && folderId) {
-                    this.handleFolderAction(action, folderId);
-                }
-                return;
-            }
-
             // 모델 테스트 버튼 클릭
-            const testBtn = e.target.closest('.test-model-btn[data-action]');
+            const testBtn = target.closest('.test-model-btn');
             if (testBtn) {
                 const action = testBtn.dataset.action;
                 if (action === 'test-ollama-model') {
                     this.testOllamaEmbeddingModel();
+                } else if (action === 'test-openai-model') {
+                    this.testOpenaiEmbeddingModel();
                 }
                 return;
             }
         });
+        
+        this.knowledgeEventListenersAttached = true;
     }
 
 
@@ -190,13 +168,16 @@ class KnowledgeManager {
                                 <div class="embedding-indicator ${folderStats.status}"></div>
                             </div>
                         </div>
-                    </div>
                 `;
                 
-                // 하위 항목들 (별도의 아이템으로 생성)
+                // 하위 항목들을 folder-children div로 감싸기 (tree-item 안에)
                 if (item.children && item.children.length > 0) {
+                    html += `<div class="folder-children">
+`;
                     html += this.generateTreeHTML(item.children, level + 1);
+                    html += `</div>`;
                 }
+                html += `</div>`;
                 if (item.files && item.files.length > 0) {
                     html += this.generateTreeHTML(item.files, level + 1);
                 }
@@ -408,18 +389,62 @@ class KnowledgeManager {
         
         // 새 이벤트 리스너 추가
         this.handleTreeClick = (event) => {
+            console.log('트리 클릭됨', event.target);
             const treeNode = event.target.closest('.tree-node');
+            console.log('tree-node 찾음:', treeNode);
             if (!treeNode) return;
             
             const type = treeNode.dataset.type;
             const id = treeNode.dataset.id;
+            console.log('type:', type, 'id:', id);
             
-            if (type && id) {
+            if (type === 'folder') {
+                // 폴더 토글 기능
+                console.log('폴더 토글 실행');
+                this.toggleFolder(treeNode);
+                // 폴더 선택 기능도 실행
+                console.log('폴더 선택 실행');
+                this.selectKnowledgeItem(treeNode, type, id);
+            } else if (type && id) {
+                // 파일 선택 기능
+                console.log('파일 선택 실행');
                 this.selectKnowledgeItem(treeNode, type, id);
             }
         };
         
         container.addEventListener('click', this.handleTreeClick);
+    }
+
+    // 폴더 접기/펼치기 토글 기능
+    toggleFolder(folderElement) {
+        console.log('toggleFolder 호출됨', folderElement);
+        
+        const isCollapsed = folderElement.classList.contains('collapsed');
+        console.log('현재 collapsed 상태:', isCollapsed);
+        
+        const treeItem = folderElement.closest('.tree-item');
+        console.log('tree-item 찾음:', treeItem);
+        
+        const folderChildren = treeItem ? treeItem.querySelector('.folder-children') : null;
+        console.log('folder-children 찾음:', folderChildren);
+        
+        if (folderChildren) {
+            if (isCollapsed) {
+                // 펼치기
+                console.log('펼치기 실행');
+                folderElement.classList.remove('collapsed');
+                folderChildren.classList.remove('collapsed');
+                folderChildren.style.maxHeight = folderChildren.scrollHeight + 'px';
+            } else {
+                // 접기
+                console.log('접기 실행');
+                folderElement.classList.add('collapsed');
+                folderChildren.classList.add('collapsed');
+                folderChildren.style.maxHeight = '0px';
+            }
+        } else {
+            console.log('folder-children을 찾을 수 없음');
+        }
     }
 
     // 트리 HTML 생성
@@ -462,18 +487,26 @@ class KnowledgeManager {
                     </div>
             `;
             
-            // 하위 폴더들 (children) 렌더링
-            if (data.children && data.children.length > 0) {
-                for (const child of data.children) {
-                    html += this.generateTreeHTML(child, level + 1);
+            // 하위 항목들을 folder-children으로 감싸기
+            if ((data.children && data.children.length > 0) || (data.files && data.files.length > 0)) {
+                html += `<div class="folder-children">
+`;
+                
+                // 하위 폴더들 (children) 렌더링
+                if (data.children && data.children.length > 0) {
+                    for (const child of data.children) {
+                        html += this.generateTreeHTML(child, level + 1);
+                    }
                 }
-            }
-            
-            // 폴더 내 파일들 렌더링
-            if (data.files && data.files.length > 0) {
-                for (const file of data.files) {
-                    html += this.generateTreeHTML({ ...file, type: 'file' }, level + 1);
+                
+                // 폴더 내 파일들 렌더링
+                if (data.files && data.files.length > 0) {
+                    for (const file of data.files) {
+                        html += this.generateTreeHTML({ ...file, type: 'file' }, level + 1);
+                    }
                 }
+                
+                html += `</div>`;
             }
             
             html += '</div>';
@@ -549,9 +582,16 @@ class KnowledgeManager {
                 const settings = await response.json();
                 if (settings && settings.configured) {
                     this.applyEmbeddingSettings(settings);
+                    // Ollama 모델 목록 로드
+                    console.log('🚀 설정 로드 후 Ollama 모델 목록 로드 시작');
+                    await this.loadOllamaModels();
                     return true; // 설정이 있음
                 }
             }
+            
+            // 설정이 없어도 모델 목록은 로드
+            console.log('🚀 설정 없음, Ollama 모델 목록 로드 시작');
+            await this.loadOllamaModels();
             return false; // 설정이 없음
         } catch (error) {
             console.error('임베딩 설정 로드 실패:', error);
@@ -573,15 +613,87 @@ class KnowledgeManager {
         // 설정 영역 표시
         this.toggleModelSettings(settings.provider);
 
-        // 모델명 입력
+        // 모델명 설정
         if (settings.provider === 'ollama') {
-            const input = document.getElementById('ollamaEmbeddingModel');
-            if (input) input.value = settings.model_name || 'nomic-embed-text';
+            const select = document.getElementById('ollamaEmbeddingModel');
+            if (select) {
+                // 모델이 로드된 후 설정 적용
+                setTimeout(() => {
+                    select.value = settings.model_name || 'nomic-embed-text';
+                }, 100);
+            }
         } else if (settings.provider === 'openai') {
             const select = document.getElementById('openaiEmbeddingModel');
             if (select) select.value = settings.model_name || 'text-embedding-3-small';
         }
     }
+
+    // Ollama 모델 목록 로드
+    async loadOllamaModels() {
+        console.log('🔄 loadOllamaModels 함수 시작');
+        
+        const modelSelect = document.getElementById('ollamaEmbeddingModel');
+        if (!modelSelect) {
+            console.error('❌ ollamaEmbeddingModel 요소를 찾을 수 없음');
+            return;
+        }
+
+        console.log('✅ ollamaEmbeddingModel 요소 찾음:', modelSelect);
+
+        try {
+            // 기존 옵션들 제거 (로딩 메시지 제외)
+            modelSelect.innerHTML = '<option value="" disabled>모델을 불러오는 중...</option>';
+            console.log('⏳ 로딩 메시지 설정 완료');
+
+            // 직접 Ollama API 호출하여 모델 목록 가져오기
+            const token = localStorage.getItem('token');
+            console.log('🔑 토큰:', token ? '있음' : '없음');
+            
+            console.log('🌐 API 호출 시작: /api/models/local');
+            const response = await fetch('/api/models/local', {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('📡 API 응답 상태:', response.status, response.statusText);
+
+            if (response.ok) {
+                const data = await response.json();
+                console.log('📋 Ollama 모델 목록 응답:', data);
+                
+                // 모델 목록이 있는 경우
+                if (data.models && data.models.length > 0) {
+                    console.log(`✅ ${data.models.length}개의 모델 발견`);
+                    modelSelect.innerHTML = '';
+                    
+                    // 기본 선택 옵션 추가
+                    modelSelect.add(new Option('설치된 모델을 선택하세요', '', true, false));
+
+                    // 모델들 추가
+                    data.models.forEach((model, index) => {
+                        const modelName = model.name || model;
+                        console.log(`  ${index + 1}. ${modelName}`);
+                        const newOption = new Option(modelName, modelName);
+                        modelSelect.add(newOption);
+                    });
+                    console.log('✅ 모든 모델 추가 완료');
+                } else {
+                    console.log('⚠️ 설치된 모델이 없음');
+                    modelSelect.innerHTML = '<option value="" disabled>설치된 모델이 없습니다</option>';
+                }
+            } else {
+                const errorText = await response.text();
+                console.error('❌ API 호출 실패:', response.status, errorText);
+                throw new Error(`API 호출 실패: ${response.status} ${errorText}`);
+            }
+        } catch (error) {
+            console.error('💥 Ollama 모델 목록 로드 실패:', error);
+            modelSelect.innerHTML = '<option value="" disabled>모델 로드 실패</option>';
+        }
+    }
+
 
     // 항목 선택 처리
     selectKnowledgeItem(element, type, id) {
@@ -612,6 +724,7 @@ class KnowledgeManager {
     // 파일 상세 정보 업데이트
     updateFileDetails(fileId, container) {
         const embeddingData = this.embeddingData.get(fileId);
+        const fileInfo = this.findFileInTree(fileId);
         const status = embeddingData?.status || 'none';
         
         const statusConfig = {
@@ -675,7 +788,7 @@ class KnowledgeManager {
         container.innerHTML = `
             <div class="detail-header">
                 <div class="detail-title">
-                    📄 ${embeddingData?.filename || '파일명'}
+                    📄 파일명: ${embeddingData?.filename || fileInfo?.filename || fileInfo?.name || '알 수 없음'}
                 </div>
                 <div class="status-badge ${config.class}">
                     ${config.text}
@@ -725,11 +838,15 @@ class KnowledgeManager {
 
     // 폴더 상세 정보 업데이트
     updateFolderDetails(folderId, container) {
+        // 폴더 정보 찾기
+        const folderInfo = this.findFolderInTree(folderId);
+        const folderName = folderInfo?.name || folderId || '알 수 없음';
+        
         // 폴더 상세 정보 구현
         container.innerHTML = `
             <div class="detail-header">
                 <div class="detail-title">
-                    📁 폴더 정보
+                    📁 폴더 정보: ${folderName}
                 </div>
             </div>
             <div class="action-buttons">
@@ -825,18 +942,22 @@ class KnowledgeManager {
 
     // 임베딩 모델 선택
     selectEmbeddingModel(element) {
+        console.log('🎯 모델 공급자 선택:', element.dataset.model);
+        
         document.querySelectorAll('.model-option').forEach(option => {
             option.classList.remove('selected');
         });
         element.classList.add('selected');
         
-        const model = element.dataset.model;
+        const modelProvider = element.dataset.model;
         
         // 설정 영역 표시/숨김
-        this.toggleModelSettings(model);
+        this.toggleModelSettings(modelProvider);
         
-        this.saveEmbeddingSettings({ model });
+        // 저장은 각 모델의 select 요소의 change 이벤트에서 처리됩니다.
     }
+
+    
 
     // 모델별 설정 영역 토글
     toggleModelSettings(selectedModel) {
@@ -863,12 +984,11 @@ class KnowledgeManager {
         
         const modelName = modelInput.value.trim();
         if (!modelName) {
-            showNotification('모델명을 입력해주세요.', 'warning');
+            showNotification('모델을 선택해주세요.', 'warning');
             return;
         }
 
-        // 버튼 상태 변경
-        const originalText = testBtn.innerHTML;
+        const originalText = '테스트 및 저장'; // 버튼 기본 텍스트
         testBtn.innerHTML = '⏳ 테스트 중...';
         testBtn.disabled = true;
 
@@ -880,36 +1000,32 @@ class KnowledgeManager {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    provider: 'ollama',
-                    model: modelName
-                })
+                body: JSON.stringify({ provider: 'ollama', model: modelName })
             });
 
             const result = await response.json();
             
-            if (response.ok) {
-                showNotification(`✅ 모델 테스트 성공: ${modelName}`, 'success');
-                testBtn.innerHTML = '✅ 성공';
-                setTimeout(() => {
-                    testBtn.innerHTML = originalText;
-                }, 2000);
+            if (result.success) {
+                testBtn.innerHTML = '✅ 저장됨';
+                showNotification(`✅ 모델 테스트 성공: ${modelName}. 설정을 저장합니다.`, 'success');
+                
+                // 테스트 성공 시 설정 저장
+                const settings = { model: 'ollama', ollama_model: modelName };
+                await this.saveEmbeddingSettings(settings);
+
             } else {
-                showNotification(`❌ 모델 테스트 실패: ${result.detail || '알 수 없는 오류'}`, 'error');
                 testBtn.innerHTML = '❌ 실패';
-                setTimeout(() => {
-                    testBtn.innerHTML = originalText;
-                }, 2000);
+                showNotification(`❌ 모델 테스트 실패: ${result.message || '알 수 없는 오류'}`, 'error');
             }
         } catch (error) {
             console.error('모델 테스트 실패:', error);
-            showNotification('모델 테스트 중 오류가 발생했습니다.', 'error');
             testBtn.innerHTML = '❌ 오류';
+            showNotification('모델 테스트 중 오류가 발생했습니다.', 'error');
+        } finally {
             setTimeout(() => {
+                testBtn.disabled = false;
                 testBtn.innerHTML = originalText;
             }, 2000);
-        } finally {
-            testBtn.disabled = false;
         }
     }
 
@@ -926,8 +1042,7 @@ class KnowledgeManager {
             return;
         }
 
-        // 버튼 상태 변경
-        const originalText = testBtn.innerHTML;
+        const originalText = '테스트 및 저장'; // 버튼 기본 텍스트
         testBtn.innerHTML = '⏳ 테스트 중...';
         testBtn.disabled = true;
 
@@ -939,36 +1054,32 @@ class KnowledgeManager {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    provider: 'openai',
-                    model: modelName
-                })
+                body: JSON.stringify({ provider: 'openai', model: modelName })
             });
 
             const result = await response.json();
             
-            if (response.ok) {
-                showNotification(`✅ 모델 테스트 성공: ${modelName}`, 'success');
-                testBtn.innerHTML = '✅ 성공';
-                setTimeout(() => {
-                    testBtn.innerHTML = originalText;
-                }, 2000);
+            if (result.success) {
+                testBtn.innerHTML = '✅ 저장됨';
+                showNotification(`✅ 모델 테스트 성공: ${modelName}. 설정을 저장합니다.`, 'success');
+
+                // 테스트 성공 시 설정 저장
+                const settings = { model: 'openai', openai_model: modelName };
+                await this.saveEmbeddingSettings(settings);
+
             } else {
-                showNotification(`❌ 모델 테스트 실패: ${result.detail || '알 수 없는 오류'}`, 'error');
                 testBtn.innerHTML = '❌ 실패';
-                setTimeout(() => {
-                    testBtn.innerHTML = originalText;
-                }, 2000);
+                showNotification(`❌ 모델 테스트 실패: ${result.message || '알 수 없는 오류'}`, 'error');
             }
         } catch (error) {
             console.error('모델 테스트 실패:', error);
-            showNotification('모델 테스트 중 오류가 발생했습니다.', 'error');
             testBtn.innerHTML = '❌ 오류';
+            showNotification('모델 테스트 중 오류가 발생했습니다.', 'error');
+        } finally {
             setTimeout(() => {
+                testBtn.disabled = false;
                 testBtn.innerHTML = originalText;
             }, 2000);
-        } finally {
-            testBtn.disabled = false;
         }
     }
 
@@ -978,19 +1089,8 @@ class KnowledgeManager {
             const token = localStorage.getItem('token');
             if (!token) return;
 
-            // 추가 설정 정보 수집
-            if (settings.model === 'ollama') {
-                const modelInput = document.getElementById('ollamaEmbeddingModel');
-                if (modelInput) {
-                    settings.ollama_model = modelInput.value.trim();
-                }
-            } else if (settings.model === 'openai') {
-                const modelSelect = document.getElementById('openaiEmbeddingModel');
-                if (modelSelect) {
-                    settings.openai_model = modelSelect.value;
-                }
-            }
-
+            console.log('💾 임베딩 설정 저장 시도:', settings);
+            
             const response = await fetch('/api/knowledge/settings', {
                 method: 'POST',
                 headers: {
@@ -1000,11 +1100,17 @@ class KnowledgeManager {
                 body: JSON.stringify(settings)
             });
 
+            console.log('📡 설정 저장 API 응답:', response.status, response.statusText);
+
             if (response.ok) {
                 showNotification('임베딩 설정이 저장되었습니다.', 'success');
                 // 설정 변경으로 인한 UI 갱신
                 await this.loadEmbeddingSettings();
                 this.refreshUI();
+            } else {
+                const errorData = await response.json();
+                console.error('❌ 설정 저장 API 오류:', errorData);
+                showNotification(`설정 저장 실패: ${errorData.detail || '알 수 없는 오류'}`, 'error');
             }
         } catch (error) {
             console.error('설정 저장 실패:', error);
@@ -1176,6 +1282,37 @@ class KnowledgeManager {
                         if (item.children && Array.isArray(item.children)) {
                             searchInData(item.children);
                         }
+                    }
+                    if (result) return;
+                }
+            }
+        };
+        
+        if (this.treeData) {
+            searchInData(this.treeData);
+        }
+        
+        return result;
+    }
+
+    // 폴더 트리에서 폴더 찾기
+    findFolderInTree(folderId) {
+        let result = null;
+        
+        const searchInData = (items) => {
+            if (!items) return;
+            
+            // 배열인 경우
+            if (Array.isArray(items)) {
+                for (const item of items) {
+                    // 폴더인 경우 확인
+                    if (item.type === 'folder' && (item.id === folderId || item.name === folderId)) {
+                        result = item;
+                        return;
+                    }
+                    // 하위 폴더들 확인
+                    if (item.children && Array.isArray(item.children)) {
+                        searchInData(item.children);
                     }
                     if (result) return;
                 }
@@ -1392,7 +1529,7 @@ class KnowledgeManager {
     startSimpleProgressCheck(fileId) {
         // 2초 후부터 시작해서 2초마다 최대 30분까지 확인
         let checkCount = 0;
-        const maxChecks = 900; // 30분 (2초 * 900회)
+        const maxChecks = 900; // 30분 (2초 * 900회) 
         
         const checkProgress = async () => {
             if (checkCount >= maxChecks) {
@@ -1435,5 +1572,6 @@ class KnowledgeManager {
 // 전역 인스턴스 생성
 const knowledgeManager = new KnowledgeManager();
 window.knowledgeManager = knowledgeManager;
+
 
 export { knowledgeManager };
