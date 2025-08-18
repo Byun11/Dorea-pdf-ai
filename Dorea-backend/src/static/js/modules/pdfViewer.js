@@ -695,9 +695,6 @@ async function renderContinuousPages(scale) {
             document.dispatchEvent(event);
         }
 
-        // 현재 페이지에 스크롤
-        scrollToPage(currentPage);
-
         // 현재 스케일 적용 (CSS transform 사용)
         if (currentScale !== 1.0) {
             applyContinuousZoom();
@@ -1271,10 +1268,7 @@ export function nextPage() {
             scrollToPage(currentPage);
             updatePageControls();
         } else {
-            rerenderCurrentView().then(() => {
-                // 페이지 전환 완료 후 세그먼트 동기화 보장
-                triggerSegmentSync();
-            });
+            rerenderCurrentView();
         }
     }
 }
@@ -1286,10 +1280,7 @@ export function previousPage() {
             scrollToPage(currentPage);
             updatePageControls();
         } else {
-            rerenderCurrentView().then(() => {
-                // 페이지 전환 완료 후 세그먼트 동기화 보장
-                triggerSegmentSync();
-            });
+            rerenderCurrentView();
         }
     }
 }
@@ -1381,10 +1372,7 @@ export function setViewMode(mode) {
     
     // 현재 페이지 다시 렌더링
     if (pdfDoc) {
-        rerenderCurrentView().then(() => {
-            // 뷰 모드 전환 완료 후 세그먼트 동기화 보장
-            triggerSegmentSync();
-        });
+        rerenderCurrentView();
     }
 }
 

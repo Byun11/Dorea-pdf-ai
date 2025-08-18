@@ -84,11 +84,6 @@ function setupModuleIntegration() {
             // 첫 페이지 렌더링 (기존 업로드 존은 이미 제거됨)
             await PDFViewer.renderPage(1);
             
-            // 원본 크기(1:1)로 자동 조정
-            setTimeout(() => {
-                PDFViewer.resetZoom();
-            }, 100);
-            
             // 파일 통합 로드 완료
             
         } catch (error) {

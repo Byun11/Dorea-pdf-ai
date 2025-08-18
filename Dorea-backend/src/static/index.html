@@ -274,9 +274,118 @@
         </div>
     </div>
 
-    <!-- 지식 관리 컨테이너 (동적으로 로드됨) -->
+    <!-- 지식 관리 컨테이너 -->
     <div class="knowledge-container" id="knowledgeContainer" style="display: none;">
-        <!-- knowledgeManager.js에서 동적으로 HTML 생성 -->
+        <div class="knowledge-sidebar">
+            <div class="sidebar-header">
+                <h2 class="sidebar-title">
+                    📚 문서 트리
+                </h2>
+                <div class="embedding-stats" id="embeddingStats">
+                    <div class="stat-item">
+                        <div class="stat-dot completed"></div>
+                        <span id="completedCount">0 완료</span>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-dot processing"></div>
+                        <span id="processingCount">0 처리중</span>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-dot none"></div>
+                        <span id="noneCount">0 대기</span>
+                    </div>
+                    <button class="refresh-btn" onclick="window.knowledgeManager.refreshUI()" title="진행 상태 새로고침">
+                        🔄
+                    </button>
+                </div>
+            </div>
+
+            <div class="folder-tree" id="knowledgeFolderTree">
+                <!-- 동적으로 생성됨 -->
+            </div>
+        </div>
+
+        <div class="knowledge-main">
+            <div class="main-header">
+                <h1 class="main-title">🧠 임베딩 관리</h1>
+                <p class="main-subtitle">선택된 항목의 임베딩 상태를 관리하고 설정을 조정하세요</p>
+            </div>
+
+            <div class="main-content">
+                <!-- 임베딩 설정 -->
+                <div class="embedding-settings">
+                    <div class="settings-header">
+                        ⚙️ 임베딩 설정
+                    </div>
+                    <div class="model-grid">
+                        <div class="model-option selected" data-model="ollama">
+                            <div class="model-radio"></div>
+                            <div class="model-name">Ollama 임베딩</div>
+                            <div class="model-desc">임베딩 전용 Ollama 모델 지정</div>
+                            <span class="model-badge local">로컬</span>
+                        </div>
+                        
+                        <div class="model-option" data-model="openai">
+                            <div class="model-radio"></div>
+                            <div class="model-name">OpenAI API</div>
+                            <div class="model-desc">text-embedding-3-small</div>
+                            <span class="model-badge premium">프리미엄</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Ollama 임베딩 모델 설정 -->
+                    <div class="ollama-embedding-settings" id="ollamaEmbeddingSettings">
+                        <div class="setting-group">
+                            <label for="ollamaEmbeddingModel" class="setting-label">
+                                🤖 Ollama 임베딩 모델
+                            </label>
+                            <div class="model-input-group">
+                                <input 
+                                    type="text" 
+                                    id="ollamaEmbeddingModel" 
+                                    class="model-input"
+                                    placeholder="예: nomic-embed-text, all-minilm"
+                                    value="nomic-embed-text"
+                                >
+                                <button class="test-model-btn" data-action="test-ollama-model">
+                                    🔍 테스트
+                                </button>
+                            </div>
+                            <div class="setting-help">
+                                임베딩 전용 모델을 지정하세요. 
+                                <a href="https://ollama.com/library" target="_blank">모델 목록 보기</a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- OpenAI API 설정 -->
+                    <div class="openai-embedding-settings" id="openaiEmbeddingSettings" style="display: none;">
+                        <div class="setting-group">
+                            <label for="openaiEmbeddingModel" class="setting-label">
+                                🚀 OpenAI 임베딩 모델
+                            </label>
+                            <select id="openaiEmbeddingModel" class="model-select">
+                                <option value="text-embedding-3-small">text-embedding-3-small (권장)</option>
+                                <option value="text-embedding-3-large">text-embedding-3-large (고성능)</option>
+                                <option value="text-embedding-ada-002">text-embedding-ada-002 (레거시)</option>
+                            </select>
+                            <div class="setting-help">
+                                API 키는 메인 설정에서 관리됩니다.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 선택된 항목 상세 정보 -->
+                <div class="selected-item-details" id="knowledgeItemDetails">
+                    <div class="empty-state">
+                        <div class="empty-icon">🗂️</div>
+                        <div class="empty-title">항목을 선택하세요</div>
+                        <div class="empty-desc">왼쪽 트리에서 폴더나 파일을 선택하면 상세 정보가 표시됩니다</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- 모델 관리 모달 -->
