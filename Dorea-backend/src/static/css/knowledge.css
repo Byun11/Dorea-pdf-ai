@@ -108,6 +108,32 @@
 .knowledge-sidebar .tree-node.folder {
     font-weight: 600;
     color: var(--text-primary);
+    position: relative;
+}
+
+.knowledge-sidebar .tree-node.folder::before {
+    content: "▼";
+    margin-right: 4px;
+    font-size: 12px;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+}
+
+.knowledge-sidebar .tree-node.folder.collapsed::before {
+    transform: rotate(-90deg);
+}
+
+.knowledge-sidebar .folder-children {
+    margin-left: 20px;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    max-height: 1000px; /* 초기 상태는 열려있음 */
+}
+
+.knowledge-sidebar .folder-children.collapsed {
+    max-height: 0;
 }
 
 .knowledge-sidebar .tree-node.file {
@@ -397,6 +423,30 @@
 
 .setting-help a:hover {
     text-decoration: underline;
+}
+
+/* 모델 선택 드롭다운 스타일 */
+.model-select {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.model-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.model-select:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* 선택된 항목 상세 정보 */
