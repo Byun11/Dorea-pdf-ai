@@ -68,6 +68,8 @@
     cursor: pointer;
     transition: background-color 0.15s;
     position: relative;
+    flex-wrap: nowrap; /* 줄바꿈 방지 */
+    min-height: 40px; /* 최소 높이 설정 */
 }
 
 .tree-item:hover {
@@ -93,6 +95,7 @@
     align-items: center;
     flex: 1;
     min-width: 0;
+    overflow: hidden; /* 넘치는 콘텐츠 숨김 */
 }
 
 .expand-icon {
@@ -154,6 +157,8 @@
     gap: 0.25rem;
     opacity: 0;
     transition: opacity 0.2s;
+    flex-shrink: 0; /* 버튼이 줄어들지 않도록 */
+    margin-left: auto; /* 오른쪽 정렬 */
 }
 
 .tree-item:hover .folder-actions,
@@ -174,6 +179,7 @@
     cursor: pointer;
     font-size: 0.875rem;
     transition: all 0.2s;
+    flex-shrink: 0; /* 버튼 크기 고정 */
 }
 
 .context-menu-btn:hover {

@@ -260,6 +260,41 @@ def validate_folder_move(db: SessionLocal, folder_id: int, new_parent_id: int = 
     
     return True
 
+# === RAG 관련 모델들 ===
+
+# RAG 임베딩 설정 모델
+class EmbeddingSettings(Base):
+    __tablename__ = "embedding_settings"
+    
+    user_id = Column(Integer, ForeignKey("users.id"), primary_key=True)
+    provider = Column(String(50), nullable=False)  # 'ollama' or 'openai'
+    model_name = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    
+    # 관계 설정
+    user = relationship("User")
+
+# 파일별 임베딩 상태 모델
+class FileEmbedding(Base):
+    __tablename__ = "file_embeddings"
+    
+    file_id = Column(String(36), ForeignKey("files.id"), primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    filename = Column(String(255), nullable=False)
+    status = Column(String(20), default='none')  # none, processing, completed, failed
+    total_chunks = Column(Integer, default=0)
+    completed_chunks = Column(Integer, default=0)
+    provider = Column(String(50))
+    model_name = Column(String(100))
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+    error_message = Column(Text)
+    
+    # 관계 설정
+    file = relationship("PDFFile")
+    user = relationship("User")
+
 # 초기화 실행
 if __name__ == "__main__":
     create_database()

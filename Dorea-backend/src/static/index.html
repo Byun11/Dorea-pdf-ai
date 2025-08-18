@@ -50,6 +50,17 @@
                 <span class="org-text">KISTI</span>
             </div>
         </div>
+        
+        <!-- 중앙 네비게이션 탭 -->
+        <div class="header-nav">
+            <button class="nav-tab active" id="chatTab" data-view="chat" title="채팅">
+                💬 채팅
+            </button>
+            <button class="nav-tab" id="knowledgeTab" data-view="knowledge" title="지식 관리">
+                📚 지식
+            </button>
+        </div>
+        
         <div class="header-actions">
             <button class="settings-btn" onclick="openSettingsModal()" title="모델 설정">
                 ⚙️ 설정
@@ -241,6 +252,10 @@
                         <button class="quick-action-btn" onclick="quickAction('analyze')">분석</button>
                     </div>
                     <div class="quick-actions-right">
+                        <button id="ragToggleBtn" class="rag-toggle-btn" onclick="toggleRagMode()" title="RAG 모드: 지식 베이스에서 검색하여 답변">
+                            <span class="toggle-icon">🔍</span>
+                            <span class="toggle-text">RAG 모드</span>
+                        </button>
                         <button id="imageToggleBtn" class="image-toggle-btn" onclick="toggleImageMode()" title="이미지 모드: 채팅과 함께 이미지로 전송">
                             <span class="toggle-icon">📷</span>
                             <span class="toggle-text">이미지 모드</span>
@@ -259,6 +274,10 @@
         </div>
     </div>
 
+    <!-- 지식 관리 컨테이너 (동적으로 로드됨) -->
+    <div class="knowledge-container" id="knowledgeContainer" style="display: none;">
+        <!-- knowledgeManager.js에서 동적으로 HTML 생성 -->
+    </div>
 
     <!-- 모델 관리 모달 -->
     <div id="settingsModal" class="modal">
