@@ -737,6 +737,27 @@ class KnowledgeManager {
                 <button class="action-btn" data-folder-action="retry-failed" data-folder-id="${folderId}">🔄 실패 항목 재시도</button>
                 <button class="action-btn" data-folder-action="view-report" data-folder-id="${folderId}">📊 상세 리포트</button>
             </div>
+            <div class="folder-action-notice" style="
+                background-color: var(--bg-tertiary);
+                border: 1px solid var(--border-secondary);
+                border-left: 4px solid var(--error);
+                border-radius: 8px;
+                padding: 12px;
+                margin-top: 16px;
+                font-size: 13px;
+                color: var(--text-secondary);
+            ">
+                <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-error); margin-bottom: 4px;">
+                    <span style="font-size: 16px;">❗</span>
+                    <span>필독: 중요 동작 원칙</span>
+                </div>
+                <p style="margin: 0; line-height: 1.6;">
+                    '폴더 전체 임베딩' 실행 시, 폴더 내 모든 파일에 <b>현재 설정된 임베딩 모델이 강제로 적용</b>됩니다.
+                </p>
+                <p style="margin: 8px 0 0 0; line-height: 1.6;">
+                    서로 다른 모델로 임베딩된 파일이 섞이면 RAG 검색 기능이 오작동하며, 이는 지원되지 않는 사용 방식입니다. 정확한 검색을 원하시면, <b>모든 파일을 하나의 모델로 통일하여 재임베딩</b> 하십시오.
+                </p>
+            </div>
         `;
 
         // 폴더 액션 버튼 이벤트 리스너 추가
