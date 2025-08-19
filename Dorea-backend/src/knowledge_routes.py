@@ -389,6 +389,9 @@ async def search_documents(
         # 결과 포맷팅
         search_results = []
         for result in results:
+            if 'text' not in result:
+                logger.warning(f"Search result missing 'text' key: {result}")
+                continue
             search_result = SearchResult(
                 text=result['text'],
                 distance=result['distance'],

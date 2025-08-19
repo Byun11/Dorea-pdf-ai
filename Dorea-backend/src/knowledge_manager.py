@@ -783,31 +783,48 @@ class KnowledgeManager:
                                      top_k: int = 5, file_id: str = None) -> List[Dict]:
         """유사 문서 검색 (선택적으로 특정 파일로 제한)"""
         try:
-            settings = await self.get_user_settings(user_id)
-            if not settings: 
-                logger.error(f"❌ 사용자 {user_id}의 임베딩 설정이 없습니다. RAG 검색을 위해서는 먼저 임베딩 모델을 설정해주세요.")
-                return []
+            embedding_provider = None
+            embedding_model = None
+
+            if file_id:
+                # 특정 파일 검색 시, 해당 파일의 임베딩 모델 사용
+                file_embedding_info = await self.get_file_embedding_status(user_id, file_id)
+                if file_embedding_info and file_embedding_info['status'] == 'completed':
+                    embedding_provider = file_embedding_info['provider']
+                    embedding_model = file_embedding_info['model_name']
+                    logger.info(f"📄 파일별 검색: '{file_embedding_info['filename']}'의 임베딩 모델({embedding_provider}/{embedding_model})을 사용합니다.")
+                else:
+                    logger.warning(f"⚠️ 해당 파일({file_id})의 임베딩 정보를 찾을 수 없거나 완료되지 않았습니다.")
+                    return []
             
-            # 임베딩 모델 통일성 체크
-            inconsistent_files = await self._check_embedding_consistency(user_id, settings, file_id)
-            if inconsistent_files:
-                logger.warning(f"⚠️ 임베딩 모델 불일치 감지: {len(inconsistent_files)}개 파일")
-                # 불일치 정보를 결과에 포함시켜 프론트엔드에서 알림 표시
-                return [{
-                    "type": "embedding_inconsistency_warning", 
-                    "inconsistent_files": inconsistent_files,
-                    "current_model": f"{settings['provider']}:{settings['model_name']}",
-                    "message": f"현재 설정된 임베딩 모델({settings['provider']}:{settings['model_name']})과 다른 모델로 임베딩된 파일들이 있습니다."
-                }]
-            
+            if not embedding_provider or not embedding_model:
+                # 전역 설정 사용 (파일 ID가 없거나, 파일 정보를 가져오지 못한 경우)
+                settings = await self.get_user_settings(user_id)
+                if not settings: 
+                    logger.error(f"❌ 사용자 {user_id}의 임베딩 설정이 없습니다. RAG 검색을 위해서는 먼저 임베딩 모델을 설정해주세요.")
+                    return []
+                embedding_provider = settings['provider']
+                embedding_model = settings['model_name']
+                logger.info(f"⚙️ 전역 검색: 현재 설정된 임베딩 모델({embedding_provider}/{embedding_model})을 사용합니다.")
+
+                # 전역 검색 시에만 모델 불일치 검사 수행
+                inconsistent_files = await self._check_embedding_consistency(user_id, settings)
+                if inconsistent_files:
+                    logger.warning(f"⚠️ 전역 설정과 다른 임베딩 모델을 사용하는 파일이 {len(inconsistent_files)}개 있습니다.")
+                    return [{
+                        "type": "embedding_inconsistency_warning", 
+                        "inconsistent_files": inconsistent_files,
+                        "current_model": f"{settings['provider']}:{settings['model_name']}",
+                        "message": f"현재 설정된 임베딩 모델과 다른 모델로 임베딩된 파일들이 있습니다."
+                    }]
+
             query_embedding = await self._generate_embedding(
-                settings['provider'], settings['model_name'], query, user_id
+                embedding_provider, embedding_model, query, user_id
             )
             if not query_embedding: 
-                logger.error(f"❌ 질문 임베딩 생성 실패: query='{query}', provider={settings['provider']}, model={settings['model_name']}")
+                logger.error(f"❌ 질문 임베딩 생성 실패: query='{query}', provider={embedding_provider}, model={embedding_model}")
                 return []
             
-            # 임베딩 검증
             if not isinstance(query_embedding, list) or not query_embedding:
                 logger.error(f"❌ 잘못된 임베딩 형식: {type(query_embedding)}")
                 return []
@@ -819,7 +836,6 @@ class KnowledgeManager:
                 collection = self.chroma_client.get_collection(collection_name)
             except ValueError: return []
             
-            # 특정 파일로 검색 제한
             where_filter = {"file_id": file_id} if file_id else None
             logger.info(f"🔍 ChromaDB 검색 조건: collection={collection_name}, filter={where_filter}")
             
@@ -829,17 +845,6 @@ class KnowledgeManager:
                 where=where_filter
             )
             logger.info(f"🔍 ChromaDB 원시 결과: documents={len(results.get('documents', [[]])[0])}, ids={results.get('ids', [[]])}")
-            
-            # ChromaDB 컬렉션 전체 문서 수 확인 (디버깅용)
-            try:
-                all_items = collection.get(where=where_filter, limit=1, include=["metadatas"])
-                logger.info(f"🔍 필터링된 전체 문서 수: {len(all_items['ids'])} (file_id={file_id})")
-                if len(all_items['ids']) == 0:
-                    # 전체 컬렉션에서 몇 개나 있는지 확인
-                    total_items = collection.get(limit=1)
-                    logger.warning(f"⚠️ 해당 파일({file_id})의 임베딩이 ChromaDB에 없습니다. 전체 문서 수: {collection.count()}")
-            except Exception as debug_error:
-                logger.error(f"❌ ChromaDB 디버깅 중 오류: {debug_error}")
             
             return [{
                 'text': doc,

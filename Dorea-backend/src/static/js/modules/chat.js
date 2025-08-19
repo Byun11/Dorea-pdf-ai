@@ -323,9 +323,9 @@ function typeTextWithEffect(element, newText) {
             try {
                 renderMathInElement(element, {
                     delimiters: [
-                        {left: '$$', right: '$$', display: true},
-                        {left: '$', right: '$', display: false},
-                        {left: '\\[', right: '\\]', display: true},
+                        {left: '$', right: '$', display: true},
+                        {left: ', right: ', display: false},
+                        {left: '\\\\[', right: '\\\\\]', display: true},
                         {left: '\\(', right: '\\)', display: false}
                     ],
                     throwOnError: false,
@@ -373,8 +373,8 @@ function parseMarkdownWithMath(text) {
         const mathPlaceholders = [];
         let protectedText = text;
         
-        // $$...$$와 $...$ 수식을 찾아서 플레이스홀더로 대체
-        // 블록 수식 처리 ($$...$$)
+        // $...$와 $...$ 수식을 찾아서 플레이스홀더로 대체
+        // 블록 수식 처리 ($...$)
         protectedText = protectedText.replace(/\$\$([\s\S]*?)\$\$/g, (match, content) => {
             const placeholder = `__MATH_BLOCK_${mathPlaceholders.length}__`;
             mathPlaceholders.push({type: 'block', content: content.trim(), original: match});
@@ -382,7 +382,7 @@ function parseMarkdownWithMath(text) {
         });
         
         // 인라인 수식 처리 ($...$) - 더 강력한 정규식으로 복잡한 수식 지원
-        protectedText = protectedText.replace(/\$([^$\n]*(?:\\.[^$\n]*)*)\$/g, (match, content) => {
+        protectedText = protectedText.replace(/\$([^$\\n]*(?:\\.[^$\\n]*)*)\\/g, (match, content) => {
             const placeholder = `__MATH_INLINE_${mathPlaceholders.length}__`;
             mathPlaceholders.push({type: 'inline', content: content.trim(), original: match});
             return placeholder;
@@ -396,7 +396,7 @@ function parseMarkdownWithMath(text) {
         mathPlaceholders.forEach((math, index) => {
             const placeholder = math.type === 'block' ? `__MATH_BLOCK_${index}__` : `__MATH_INLINE_${index}__`;
             // 정규식을 사용하여 placeholder가 다른 태그에 의해 감싸지는 것을 방지
-            result = result.replace(new RegExp(`(<p>\s*)?${placeholder}(\s*<\/p>)?`), math.original);
+            result = result.replace(new RegExp(`(<p>\\s*)?${placeholder}(\\s*<\/p>)?`), math.original);
         });
         
         return result;
@@ -434,7 +434,7 @@ function parseMarkdown(text) {
         .replace(/```([\s\S]*?)```/g, '<pre style="background: var(--bg-tertiary); color: var(--text-primary); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 10px 0; border-left: 3px solid var(--primary); border: 1px solid var(--border-primary);"><code style="font-family: monospace; font-size: 0.9em; white-space: pre;">$1</code></pre>')
         
         // Links
-        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: var(--primary); text-decoration: underline;">$1</a>')
+        .replace(/\<a href=\"([^\\]+)\" target=\"_blank\" style=\"color: var(--primary); text-decoration: underline;\">([^\\]+)<\/a>/g, '<a href="$1" target="_blank" style="color: var(--primary); text-decoration: underline;">$2</a>')
         
         // Line breaks
         .replace(/\n/g, '<br>');
@@ -454,12 +454,12 @@ function parseMarkdown(text) {
             }
             const listItem = line.replace(/^[-*+]\s/, '');
             result.push(`<li style="margin: 3px 0;">${listItem}</li>`);
-        } else if (line.match(/^\d+\.\s/)) {
+        } else if (line.match(/^\d+\\.\s/)) {
             if (!inList) {
                 result.push('<ol style="margin: 8px 0; padding-left: 20px;">');
                 inList = true;
             }
-            const listItem = line.replace(/^\d+\.\s/, '');
+            const listItem = line.replace(/^\d+\\.\s/, '');
             result.push(`<li style="margin: 3px 0;">${listItem}</li>`);
         } else {
             if (inList) {
@@ -766,9 +766,9 @@ ${contextTexts}
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$$', right: '$$', display: true},
-                                                    {left: '$', right: '$', display: false},
-                                                    {left: '\\[', right: '\\]', display: true},
+                                                    {left: '$', right: '$', display: true},
+                                                    {left: ', right: ', display: false},
+                                                    {left: '\\\\[', right: '\\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
                                                 throwOnError: false,
@@ -830,7 +830,7 @@ async function processMessage(message, selectedSegments = null) {
     }
 
     // RAG 모드 체크 - 명시적으로 활성화되어 있거나, 세그먼트가 선택되지 않았을 때 자동 활성화
-    const shouldUseRag = ragModeEnabled || (selectedSegments.length === 0);
+    const shouldUseRag = ragModeEnabled;
     if (shouldUseRag) {
         console.log('🔍 [DEBUG] RAG 모드로 메시지 처리');
         console.log(`  - 모드: ${ragModeEnabled ? '명시적 활성화' : '자동 활성화 (세그먼트 없음)'}`);
@@ -971,9 +971,9 @@ async function processMessage(message, selectedSegments = null) {
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$$', right: '$$', display: true},
-                                                    {left: '$', right: '$', display: false},
-                                                    {left: '\\[', right: '\\]', display: true},
+                                                    {left: '$', right: '$', display: true},
+                                                    {left: ', right: ', display: false},
+                                                    {left: '\\\\[', right: '\\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
                                                 throwOnError: false,
@@ -1061,9 +1061,9 @@ function addMessage(content, isUser, isStreaming = false) {
                 try {
                     renderMathInElement(contentDiv, {
                         delimiters: [
-                            {left: '$$', right: '$$', display: true},
-                            {left: '$', right: '$', display: false},
-                            {left: '\\[', right: '\\]', display: true},
+                            {left: '$', right: '$', display: true},
+                            {left: ', right: ', display: false},
+                            {left: '\\\\[', right: '\\\\\]', display: true},
                             {left: '\\(', right: '\\)', display: false}
                         ],
                         throwOnError: false,
@@ -1623,9 +1623,9 @@ async function handleSegmentImagesAttachment(images, segments, message) {
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$$', right: '$$', display: true},
-                                                    {left: '$', right: '$', display: false},
-                                                    {left: '\\[', right: '\\]', display: true},
+                                                    {left: '$', right: '$', display: true},
+                                                    {left: ', right: ', display: false},
+                                                    {left: '\\\\[', right: '\\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
                                                 throwOnError: false,
