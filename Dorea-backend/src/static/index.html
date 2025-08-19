@@ -374,21 +374,21 @@
                         <div class="flex flex-col w-full p-3" style="border-top: 1px solid var(--border-primary); margin-top: var(--space-4); padding-top: var(--space-4);">
                             <!-- 고급 옵션 토글 버튼 -->
                             <div class="mb-4">
-                                <button id="embeddingAdvancedOptionsToggle" class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-all duration-200" onclick="window.knowledgeManager.toggleAdvancedOptions()"
+                                <button id="embeddingAdvancedOptionsToggle" class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-all duration-200" onclick="window.embeddingToggleAdvancedOptions()"
                                 >
                                     <div class="flex items-center gap-2">
                                         <span>⚙️</span>
                                         <span>고급 옵션</span>
                                         <span class="text-xs text-gray-500">(모델 다운로드/삭제)</span>
                                     </div>
-                                    <svg id="embeddingAdvancedOptionsIcon" class="w-4 h-4 transform transition-transform duration-200 rotated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg id="embeddingAdvancedOptionsIcon" class="w-4 h-4 transform transition-transform duration-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
                                 </button>
                             </div>
 
                             <!-- 고급 옵션 영역 (기본 숨김) -->
-                            <div id="embeddingAdvancedOptionsSection" class="advanced-options-section expanded" style="display: block;">
+                            <div id="embeddingAdvancedOptionsSection" class="advanced-options-section" style="display: none;">
                                 <!-- Ollama 인스턴스 선택 -->
                                 <div class="mb-4">
                                     <div class="mb-2 text-sm font-medium">Ollama 인스턴스</div>
@@ -452,7 +452,7 @@
                                         </button>
                                     </div>
                                 </div>
-                            </div></div>
+                            </div>
                         </div>
                     </div>
                     

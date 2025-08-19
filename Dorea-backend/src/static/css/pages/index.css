@@ -2808,13 +2808,15 @@ body #uploadModal .upload-actions {
 
 /* ===== 고급 옵션 토글 스타일 ===== */
 .advanced-options-section {
-    overflow: hidden;
+    overflow: visible;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    background: rgba(248, 250, 252, 0.8);
-    border: 1px solid rgba(226, 232, 240, 0.8);
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(226, 232, 240, 0.3);
     border-radius: var(--radius-lg);
     padding: 0;
     margin-top: var(--space-3);
+    position: relative;
+    z-index: 1;
 }
 
 .advanced-options-section.expanded {
