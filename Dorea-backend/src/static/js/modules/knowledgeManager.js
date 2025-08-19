@@ -9,6 +9,7 @@ class KnowledgeManager {
         this.embeddingData = new Map(); // 파일별 임베딩 상태 캐시
         this.treeData = null; // 파일 트리 데이터 캐시
         this.pollingInterval = null; // 진행률 체크용 polling
+        this.embeddingDownloadController = null; // 임베딩 모델 다운로드 중단용
         this.init();
     }
 
@@ -633,6 +634,8 @@ class KnowledgeManager {
         console.log('🔄 loadOllamaModels 함수 시작');
         
         const modelSelect = document.getElementById('ollamaEmbeddingModel');
+        const deleteModelSelect = document.getElementById('embeddingDeleteModelSelect');
+        
         if (!modelSelect) {
             console.error('❌ ollamaEmbeddingModel 요소를 찾을 수 없음');
             return;
@@ -643,6 +646,9 @@ class KnowledgeManager {
         try {
             // 기존 옵션들 제거 (로딩 메시지 제외)
             modelSelect.innerHTML = '<option value="" disabled>모델을 불러오는 중...</option>';
+            if (deleteModelSelect) {
+                deleteModelSelect.innerHTML = '<option value="" disabled>모델을 불러오는 중...</option>';
+            }
             console.log('⏳ 로딩 메시지 설정 완료');
 
             // 직접 Ollama API 호출하여 모델 목록 가져오기
@@ -667,21 +673,34 @@ class KnowledgeManager {
                 if (data.models && data.models.length > 0) {
                     console.log(`✅ ${data.models.length}개의 모델 발견`);
                     modelSelect.innerHTML = '';
+                    if (deleteModelSelect) {
+                        deleteModelSelect.innerHTML = '';
+                    }
                     
                     // 기본 선택 옵션 추가
                     modelSelect.add(new Option('설치된 모델을 선택하세요', '', true, false));
+                    if (deleteModelSelect) {
+                        deleteModelSelect.add(new Option('삭제할 모델을 선택하세요', '', true, false));
+                    }
 
                     // 모델들 추가
                     data.models.forEach((model, index) => {
                         const modelName = model.name || model;
                         console.log(`  ${index + 1}. ${modelName}`);
                         const newOption = new Option(modelName, modelName);
+                        const deleteOption = new Option(modelName, modelName);
                         modelSelect.add(newOption);
+                        if (deleteModelSelect) {
+                            deleteModelSelect.add(deleteOption);
+                        }
                     });
                     console.log('✅ 모든 모델 추가 완료');
                 } else {
                     console.log('⚠️ 설치된 모델이 없음');
                     modelSelect.innerHTML = '<option value="" disabled>설치된 모델이 없습니다</option>';
+                    if (deleteModelSelect) {
+                        deleteModelSelect.innerHTML = '<option value="" disabled>설치된 모델이 없습니다</option>';
+                    }
                 }
             } else {
                 const errorText = await response.text();
@@ -691,6 +710,9 @@ class KnowledgeManager {
         } catch (error) {
             console.error('💥 Ollama 모델 목록 로드 실패:', error);
             modelSelect.innerHTML = '<option value="" disabled>모델 로드 실패</option>';
+            if (deleteModelSelect) {
+                deleteModelSelect.innerHTML = '<option value="" disabled>모델 로드 실패</option>';
+            }
         }
     }
 
@@ -1571,6 +1593,260 @@ class KnowledgeManager {
     formatDate(dateString) {
         if (!dateString) return '-';
         return new Date(dateString).toLocaleDateString('ko-KR');
+    }
+
+    // 임베딩 모델 다운로드 (OllamaManager의 pullModel 로직 복사)
+    async pullModel() {
+        console.log('📥 임베딩 관리 모델 다운로드 시작');
+        
+        const input = document.getElementById('embeddingPullModelInput');
+        const button = document.getElementById('embeddingPullModelBtn');
+        const status = document.getElementById('embeddingPullModelStatus');
+        
+        const modelName = input ? input.value.trim() : '';
+        if (!modelName) {
+            showNotification('모델 이름을 입력해주세요.', 'error');
+            return;
+        }
+
+        // AbortController 생성
+        this.embeddingDownloadController = new AbortController();
+
+        // 로딩 상태 및 중단 버튼
+        if (button) {
+            button.disabled = false;
+            button.innerHTML = '⏹️ 중단';
+            button.onclick = () => this.cancelEmbeddingModelDownload();
+        }
+
+        if (status) {
+            status.style.display = 'block';
+            status.className = 'mt-2 p-2 rounded text-sm bg-blue-50 text-blue-700';
+            status.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>모델 '${modelName}' 다운로드 준비 중...</span>
+                </div>
+                <div class="mt-2">
+                    <div class="bg-gray-200 rounded-full h-2">
+                        <div id="embeddingDownloadProgress" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs mt-1">
+                        <span id="embeddingDownloadPercent">0%</span>
+                        <span id="embeddingDownloadSize">0MB / 0MB</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/models/local/download', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ model_name: modelName }),
+                signal: this.embeddingDownloadController.signal
+            });
+
+            if (!response.ok) {
+                throw new Error('다운로드 시작 실패');
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+
+            const readStream = async () => {
+                try {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        console.log('✅ 임베딩 모델 다운로드 완료');
+                        this.handleEmbeddingDownloadComplete(modelName);
+                        return;
+                    }
+
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+
+                    lines.forEach(line => {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                this.handleEmbeddingDownloadEvent(data);
+                            } catch (e) {
+                                console.log('JSON 파싱 오류:', e, 'Line:', line);
+                            }
+                        }
+                    });
+
+                    await readStream();
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        console.log('🚫 스트림 읽기 중단됨 (정상)');
+                    } else {
+                        console.error('스트림 읽기 오류:', error);
+                        this.handleEmbeddingDownloadError(error);
+                    }
+                }
+            };
+
+            await readStream();
+
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('🚫 임베딩 모델 다운로드가 사용자에 의해 중단됨');
+                this.handleEmbeddingDownloadCancelled();
+            } else {
+                console.error('❌ 임베딩 모델 다운로드 오류:', error);
+                this.handleEmbeddingDownloadError(error);
+            }
+        }
+    }
+
+    // 임베딩 모델 다운로드 중단
+    cancelEmbeddingModelDownload() {
+        if (this.embeddingDownloadController) {
+            console.log('🚫 임베딩 모델 다운로드 중단 요청');
+            this.embeddingDownloadController.abort();
+            this.embeddingDownloadController = null;
+        }
+    }
+
+    // 임베딩 다운로드 이벤트 처리
+    handleEmbeddingDownloadEvent(data) {
+        const progressBar = document.getElementById('embeddingDownloadProgress');
+        const percentText = document.getElementById('embeddingDownloadPercent');
+        const sizeText = document.getElementById('embeddingDownloadSize');
+        const statusDiv = document.getElementById('embeddingPullModelStatus');
+        
+        switch (data.type) {
+            case 'start':
+                if (statusDiv) statusDiv.className = 'mt-2 p-2 rounded text-sm border border-blue-300 bg-blue-50';
+                console.log('📥 임베딩 모델 다운로드 시작');
+                break;
+                
+            case 'progress':
+                if (progressBar && percentText && sizeText) {
+                    progressBar.style.width = `${data.percentage}%`;
+                    percentText.textContent = `${data.percentage}%`;
+                    
+                    const completedMB = (data.completed / 1024 / 1024).toFixed(1);
+                    const totalMB = (data.total / 1024 / 1024).toFixed(1);
+                    sizeText.textContent = `${completedMB}MB / ${totalMB}MB`;
+                }
+                break;
+                
+            case 'status':
+                if (sizeText) {
+                    sizeText.textContent = data.status;
+                }
+                break;
+                
+            case 'done':
+                this.handleEmbeddingDownloadComplete();
+                break;
+                
+            case 'error':
+                this.handleEmbeddingDownloadError(new Error(data.error));
+                break;
+        }
+    }
+
+    // 임베딩 다운로드 완료 처리
+    handleEmbeddingDownloadComplete(modelName) {
+        const button = document.getElementById('embeddingPullModelBtn');
+        const status = document.getElementById('embeddingPullModelStatus');
+        const input = document.getElementById('embeddingPullModelInput');
+        
+        if (status) {
+            status.className = 'mt-2 p-2 rounded text-sm border border-green-300 bg-green-50';
+            status.innerHTML = `
+                <div class="flex items-center">
+                    <span>✅ 임베딩 모델 '${modelName || ''}' 다운로드 완료!</span>
+                </div>
+            `;
+        }
+        
+        // 입력 필드 초기화
+        if (input) input.value = '';
+        
+        // 버튼 상태 복원
+        if (button) {
+            button.disabled = false;
+            button.onclick = () => this.pullModel();
+            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path></svg>';
+        }
+        
+        this.embeddingDownloadController = null;
+        
+        // 모델 목록 새로고침
+        setTimeout(() => {
+            this.loadOllamaModels();
+        }, 2000);
+        
+        // 5초 후 상태 메시지 숨기기
+        setTimeout(() => {
+            if (status) status.style.display = 'none';
+        }, 5000);
+    }
+
+    // 임베딩 다운로드 오류 처리
+    handleEmbeddingDownloadError(error) {
+        const button = document.getElementById('embeddingPullModelBtn');
+        const status = document.getElementById('embeddingPullModelStatus');
+        
+        if (status) {
+            status.className = 'mt-2 p-2 rounded text-sm border border-red-300 bg-red-50';
+            status.innerHTML = `
+                <div class="flex items-center">
+                    <span>❌ 다운로드 오류: ${error.message || '알 수 없는 오류'}</span>
+                </div>
+            `;
+        }
+        
+        // 버튼 상태 복원
+        if (button) {
+            button.disabled = false;
+            button.onclick = () => this.pullModel();
+            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path></svg>';
+        }
+        
+        this.embeddingDownloadController = null;
+        
+        // 5초 후 상태 메시지 숨기기
+        setTimeout(() => {
+            if (status) status.style.display = 'none';
+        }, 5000);
+    }
+
+    // 임베딩 다운로드 중단 처리
+    handleEmbeddingDownloadCancelled() {
+        const button = document.getElementById('embeddingPullModelBtn');
+        const status = document.getElementById('embeddingPullModelStatus');
+        
+        if (status) {
+            status.className = 'mt-2 p-2 rounded text-sm border border-yellow-300 bg-yellow-50';
+            status.innerHTML = `
+                <div class="flex items-center">
+                    <span>🚫 다운로드가 중단되었습니다.</span>
+                </div>
+            `;
+        }
+        
+        // 버튼 상태 복원
+        if (button) {
+            button.disabled = false;
+            button.onclick = () => this.pullModel();
+            button.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4"><path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path><path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.25Z"></path></svg>';
+        }
+        
+        // 3초 후 상태 메시지 숨기기
+        setTimeout(() => {
+            if (status) status.style.display = 'none';
+        }, 3000);
+        
+        this.embeddingDownloadController = null;
     }
 }
 

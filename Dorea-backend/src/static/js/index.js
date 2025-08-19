@@ -359,6 +359,9 @@ window.ollamaManager = {
     saveModelSettings: OllamaManager.saveModelSettings
 };
 
+// Knowledge Manager 함수들 (지식 관리 페이지용)
+window.knowledgeManager = knowledgeManager;
+
 // Dorea 모듈화 완료 - 모든 함수가 글로벌에 노출됨
 
 // JWT 토큰 검증 및 사용자 정보 로드
@@ -604,6 +607,41 @@ function toggleAdvancedOptions() {
     }
 }
 
+// 임베딩 관리 관련 함수들 (HTML onclick에서 사용)
+window.embeddingToggleAdvancedOptions = () => {
+    const section = document.getElementById('embeddingAdvancedOptionsSection');
+    const icon = document.getElementById('embeddingAdvancedOptionsIcon');
+    
+    if (section && icon) {
+        const isExpanded = section.style.display !== 'none';
+        
+        if (isExpanded) {
+            // 축소
+            section.classList.remove('expanded');
+            icon.classList.remove('rotated');
+            
+            setTimeout(() => {
+                section.style.display = 'none';
+            }, 300);
+        } else {
+            // 확장
+            section.style.display = 'block';
+            
+            setTimeout(() => {
+                section.classList.add('expanded');
+                icon.classList.add('rotated');
+            }, 10);
+        }
+    }
+};
+
+// 임베딩 모델 다운로드 중단 함수
+window.cancelEmbeddingModelDownload = () => {
+    if (window.knowledgeManager) {
+        window.knowledgeManager.cancelEmbeddingModelDownload();
+    }
+};
+
 // ===== 페이지 전환 관리 =====
 
 // 현재 뷰 상태
@@ -689,6 +727,84 @@ function updateNavTabs(activeView) {
         knowledgeTab.classList.toggle('active', activeView === 'knowledge');
     }
 }
+
+
+// HTML onclick에서 접근할 수 있도록 모든 필요한 함수를 글로벌에 노출
+window.logout = Utils.logout;
+window.toggleTheme = UI.toggleTheme;
+window.toggleSidebar = UI.toggleSidebar;
+window.openSettingsModal = OllamaManager.openSettingsModal;
+window.closeSettingsModal = OllamaManager.closeSettingsModal;
+window.processFiles = FileManager.processFiles;
+window.goHome = goHome;
+
+// Ollama 관련 함수들 (일부는 직접 호출됨)
+window.selectProvider = OllamaManager.selectProvider;
+window.pullModel = OllamaManager.pullModel;
+window.deleteModel = OllamaManager.deleteModel;
+window.saveModelSettings = OllamaManager.saveModelSettings;
+
+// Knowledge Manager 함수들 (지식 관리 페이지용)
+window.knowledgeManager = knowledgeManager;
+
+// 개별 함수들도 노출 (HTML에서 직접 호출)
+window.fileManager = {
+    selectFile: FileManager.selectFile,
+    deleteFile: FileManager.deleteFile,
+    cancelFile: FileManager.cancelFile,
+    retryFile: FileManager.retryFile,
+    getFileQueue: FileManager.getFileQueue
+};
+
+// 세그먼트 관련 함수들 (일부는 직접 호출됨)
+window.clearAllSegments = SegmentManager.clearAllSegments;
+window.quickAction = SegmentManager.quickAction;
+window.toggleImageMode = SegmentManager.toggleImageMode;
+
+window.segmentManager = {
+    removeSegment: SegmentManager.removeSegment,
+    quickAction: SegmentManager.quickAction,
+    getSelectedSegments: SegmentManager.getSelectedSegments,
+    clearAllSegments: SegmentManager.clearAllSegments,
+    getImageModeStatus: SegmentManager.getImageModeStatus,
+    toggleImageMode: SegmentManager.toggleImageMode
+};
+
+// 채팅 관련 함수들 (일부는 직접 호출됨)
+window.switchToSession = Chat.switchToSession;
+window.newSession = Chat.newSession;
+window.renameSession = Chat.renameSession;
+window.deleteSession = Chat.deleteSession;
+window.sendMessage = Chat.sendMessage;
+
+window.chatManager = {
+    switchToSession: Chat.switchToSession,
+    newSession: Chat.newSession,
+    renameSession: Chat.renameSession,
+    deleteSession: Chat.deleteSession
+};
+
+window.pdfViewer = {
+    zoomIn: PDFViewer.zoomIn,
+    zoomOut: PDFViewer.zoomOut,
+    resetZoom: PDFViewer.resetZoom,
+    fitToWidth: PDFViewer.fitToWidth,
+    fitToHeight: PDFViewer.fitToHeight,
+    nextPage: PDFViewer.nextPage,
+    previousPage: PDFViewer.previousPage,
+    captureSegmentAsImage: PDFViewer.captureSegmentAsImage,
+    setViewMode: PDFViewer.setViewMode,
+    toggleSegments: PDFViewer.toggleSegments,
+    toggleViewSettings: PDFViewer.toggleViewSettings,
+    updateZoomControlsPosition: PDFViewer.updateZoomControlsPosition
+};
+
+window.ollamaManager = {
+    selectProvider: OllamaManager.selectProvider,
+    pullModel: OllamaManager.pullModel,
+    deleteModel: OllamaManager.deleteModel,
+    saveModelSettings: OllamaManager.saveModelSettings
+};
 
 // 글로벌 함수로 노출
 window.saveApiKey = saveApiKey;
