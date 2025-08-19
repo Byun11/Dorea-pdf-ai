@@ -1,0 +1,479 @@
+/* =====================================================
+   Settings Menu Component Styles
+   ===================================================== */
+
+/* 채팅 컨트롤 컨테이너 */
+.chat-controls-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* RAG 토글 스위치 컨테이너 */
+.rag-toggle-container {
+    display: flex;
+    align-items: center;
+}
+
+.rag-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    transition: all 0.2s var(--ease);
+    min-height: 40px;
+}
+
+.rag-toggle-label:hover {
+    background: var(--bg-secondary);
+    border-color: var(--border-secondary);
+}
+
+/* 체크박스 숨기기 */
+.rag-toggle-label input[type="checkbox"] {
+    display: none;
+}
+
+/* 토글 스위치 */
+.rag-toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--border-secondary);
+    border-radius: 12px;
+    transition: background 0.3s var(--ease);
+    flex-shrink: 0;
+}
+
+.rag-toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s var(--ease);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 체크박스 체크되었을 때 */
+.rag-toggle-label input[type="checkbox"]:checked + .rag-toggle-slider {
+    background: var(--primary);
+}
+
+.rag-toggle-label input[type="checkbox"]:checked + .rag-toggle-slider::before {
+    transform: translateX(20px);
+}
+
+/* 토글 컨텐츠 */
+.rag-toggle-content {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.rag-toggle-content .toggle-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.rag-toggle-content .toggle-text {
+    font-size: var(--font-sm);
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+/* 활성화 상태 */
+.rag-toggle-label input[type="checkbox"]:checked ~ .rag-toggle-content .toggle-text {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.rag-toggle-label input[type="checkbox"]:checked ~ .rag-toggle-content .toggle-icon {
+    color: var(--primary);
+}
+
+/* 설정 버튼 컨테이너 */
+.chat-settings {
+    position: relative;
+    display: flex;
+    align-items: center;
+    z-index: 1011; /* 설정 메뉴보다 약간 높게 */
+}
+
+/* 설정 버튼 */
+.settings-btn {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-2) var(--space-3);
+    font-size: 16px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    min-height: 40px;
+}
+
+.settings-btn:hover {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+}
+
+/* 설정 메뉴 드롭다운 */
+.settings-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    padding: var(--space-2);
+    min-width: 200px;
+    margin-top: 4px;
+    z-index: 1010; /* PDF 뷰어 설정보다 높게 */
+}
+
+.settings-menu.hidden {
+    display: none;
+}
+
+/* RAG 모드 토글 */
+.settings-item {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-item:last-child {
+    border-bottom: none;
+}
+
+.settings-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    cursor: pointer;
+    user-select: none;
+}
+
+.settings-toggle-label input[type="checkbox"] {
+    display: none;
+}
+
+.settings-toggle-slider {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    background: var(--border-secondary);
+    border-radius: 12px;
+    transition: background 0.3s var(--ease);
+    flex-shrink: 0;
+}
+
+.settings-toggle-slider::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.3s var(--ease);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.settings-toggle-label input[type="checkbox"]:checked + .settings-toggle-slider {
+    background: var(--primary);
+}
+
+.settings-toggle-label input[type="checkbox"]:checked + .settings-toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.settings-toggle-text {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: var(--font-sm);
+}
+
+.settings-description {
+    display: block;
+    color: var(--text-tertiary);
+    font-size: var(--font-xs);
+    margin-top: var(--space-1);
+    margin-left: 46px;
+}
+
+/* 설정 섹션 */
+.settings-section {
+    padding: var(--space-2) 0;
+}
+
+.settings-section:not(:last-child) {
+    border-bottom: 1px solid var(--border-light);
+}
+
+.settings-section-title {
+    font-size: var(--font-xs);
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-1);
+}
+
+/* 설정 옵션 버튼 */
+.settings-option-btn {
+    width: 100%;
+    background: transparent;
+    border: none;
+    padding: var(--space-2) var(--space-3);
+    text-align: left;
+    font-size: var(--font-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: background 0.2s var(--ease);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.settings-option-btn:hover {
+    background: var(--bg-secondary);
+}
+
+.settings-option-btn span {
+    flex-shrink: 0;
+    width: 20px;
+    text-align: center;
+}
+
+/* 컨텍스트 소스 표시 */
+.context-sources {
+    margin-top: var(--space-4);
+    padding: var(--space-3);
+    background: var(--bg-secondary);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--primary);
+}
+
+.context-sources-header {
+    margin-bottom: var(--space-3);
+}
+
+.sources-title {
+    font-size: var(--font-sm);
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-1);
+}
+
+.sources-subtitle {
+    font-size: var(--font-xs);
+    color: var(--text-tertiary);
+}
+
+.context-sources-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.context-source-item {
+    background: white;
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-sm);
+    padding: var(--space-3);
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+}
+
+.context-source-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.source-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.source-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.source-title {
+    font-size: var(--font-sm);
+    font-weight: 500;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.source-similarity {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 2px 6px;
+    border-radius: var(--radius-xs);
+}
+
+.source-preview {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    line-height: 1.4;
+    max-height: 3em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+/* z-index 레이어 정리 */
+/* 
+  레이어 순서:
+  - 알림: 9999 (최상위)
+  - 채팅 설정 메뉴: 1010
+  - PDF 뷰어 설정 메뉴: 1002
+  - 기본 컨텐츠: 1
+*/
+
+/* PDF 뷰어 설정 메뉴 z-index 조정 */
+.view-options-menu {
+    z-index: 1015 !important; /* 채팅 설정보다 높게 */
+}
+
+/* 알림 위치 조정 - 더 아래쪽으로 */
+.notification {
+    position: fixed !important;
+    top: 150px !important; /* 더 아래로 내림 */
+    right: 20px !important;
+    z-index: 9999 !important; /* 최상위 */
+    max-width: 400px !important;
+    padding: 12px 16px !important;
+    background: var(--bg-primary, white) !important;
+    color: var(--text-primary, #1f2937) !important;
+    border: 1px solid var(--border-primary, #e5e7eb) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+    transform: translateX(0) !important;
+    transition: all 0.3s ease !important;
+}
+
+/* 다크모드 대응 */
+[data-theme="dark"] .notification {
+    background: var(--bg-primary, #1f2937) !important;
+    color: var(--text-primary, white) !important;
+    border: 1px solid var(--border-primary, #374151) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* 알림 타입별 색상 - 라이트모드 */
+.notification.success {
+    border-left: 4px solid #10b981 !important;
+    background: #f0fdf4 !important;
+    color: #065f46 !important;
+}
+
+.notification.error {
+    border-left: 4px solid #ef4444 !important;
+    background: #fef2f2 !important;
+    color: #991b1b !important;
+}
+
+.notification.warning {
+    border-left: 4px solid #f59e0b !important;
+    background: #fffbeb !important;
+    color: #92400e !important;
+}
+
+.notification.info {
+    border-left: 4px solid #3b82f6 !important;
+    background: #eff6ff !important;
+    color: #1e40af !important;
+}
+
+/* 알림 타입별 색상 - 다크모드 */
+[data-theme="dark"] .notification.success {
+    background: #064e3b !important;
+    color: #10b981 !important;
+}
+
+[data-theme="dark"] .notification.error {
+    background: #7f1d1d !important;
+    color: #ef4444 !important;
+}
+
+[data-theme="dark"] .notification.warning {
+    background: #78350f !important;
+    color: #f59e0b !important;
+}
+
+[data-theme="dark"] .notification.info {
+    background: #1e3a8a !important;
+    color: #3b82f6 !important;
+}
+
+/* 접근성 - 스크린 리더 전용 클래스 */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .settings-menu {
+        min-width: 180px;
+        right: -10px;
+    }
+    
+    .context-sources {
+        margin-left: -var(--space-2);
+        margin-right: -var(--space-2);
+    }
+    
+    .source-header {
+        flex-wrap: wrap;
+        gap: var(--space-1);
+    }
+    
+    .source-similarity {
+        order: 3;
+        margin-top: var(--space-1);
+    }
+    
+    .notification {
+        top: 150px !important; /* 모바일에서도 더 아래로 */
+        right: 10px !important;
+        max-width: calc(100vw - 20px) !important;
+    }
+}

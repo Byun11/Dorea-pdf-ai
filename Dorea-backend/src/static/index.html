@@ -88,7 +88,7 @@
                             📄 파일
                         </button>
                     </div>
-                    <input type="file" id="fileInput" accept=".pdf" multiple style="display: none;">
+                    <input type="file" id="fileInput" name="fileInput" accept=".pdf" multiple style="display: none;">
                 </div>
                 <div class="folder-tree" id="folderTree">
                     <div class="empty-tree">
@@ -192,21 +192,51 @@
                             <option value="">채팅 세션 선택</option>
                         </select>
                     </div>
-                    <div class="chat-controls" id="chatControls" style="display: none;">
-                        <div class="font-size-controls">
-                            <button onclick="adjustFontSize(-1)" title="글자 크기 작게" class="font-btn">A-</button>
-                            <button onclick="adjustFontSize(1)" title="글자 크기 크게" class="font-btn">A+</button>
+                    <!-- 채팅 컨트롤 -->
+                    <div class="chat-controls-container">
+                        <!-- RAG 모드 토글 스위치 -->
+                        <div class="rag-toggle-container">
+                            <label class="rag-toggle-label" title="RAG 모드: 전체 문서에서 검색하여 답변">
+                                <input type="checkbox" id="ragToggleSwitch" name="ragToggleSwitch" onchange="toggleRagMode()">
+                                <span class="rag-toggle-slider"></span>
+                                <div class="rag-toggle-content">
+                                    <span class="toggle-icon">🔍</span>
+                                    <span class="toggle-text">RAG 모드</span>
+                                </div>
+                            </label>
                         </div>
-                        <div class="chat-controls-horizontal">
-                            <button onclick="newSession()" class="new-btn" title="새 채팅 시작">
-                                💬
+                        
+                        <!-- 설정 드롭다운 -->
+                        <div class="chat-settings">
+                            <button id="chatSettingsBtn" class="settings-btn" onclick="toggleSettings()" title="채팅 설정">
+                                ⚙️
                             </button>
-                            <button onclick="renameSession()" title="세션 이름 변경">
-                                ✏️
-                            </button>
-                            <button onclick="deleteSession()" class="delete-btn" title="세션 삭제">
-                                🗑️
-                            </button>
+                            <div class="settings-menu hidden" id="settingsMenu">
+                                <!-- 세션 관리 -->
+                                <div class="settings-section">
+                                    <div class="settings-section-title">세션 관리</div>
+                                    <button class="settings-option-btn" onclick="newSession()">
+                                        <span>💬</span> 새 채팅
+                                    </button>
+                                    <button class="settings-option-btn" onclick="renameSession()">
+                                        <span>✏️</span> 이름 변경
+                                    </button>
+                                    <button class="settings-option-btn" onclick="deleteSession()">
+                                        <span>🗑️</span> 세션 삭제
+                                    </button>
+                                </div>
+
+                                <!-- 표시 옵션 -->
+                                <div class="settings-section">
+                                    <div class="settings-section-title">표시 옵션</div>
+                                    <button class="settings-option-btn" onclick="adjustFontSize(-1)">
+                                        <span>A-</span> 작게
+                                    </button>
+                                    <button class="settings-option-btn" onclick="adjustFontSize(1)">
+                                        <span>A+</span> 크게
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -252,10 +282,6 @@
                         <button class="quick-action-btn" onclick="quickAction('analyze')">분석</button>
                     </div>
                     <div class="quick-actions-right">
-                        <button id="ragToggleBtn" class="rag-toggle-btn" onclick="toggleRagMode()" title="RAG 모드: 지식 베이스에서 검색하여 답변">
-                            <span class="toggle-icon">🔍</span>
-                            <span class="toggle-text">RAG 모드</span>
-                        </button>
                         <button id="imageToggleBtn" class="image-toggle-btn" onclick="toggleImageMode()" title="이미지 모드: 채팅과 함께 이미지로 전송">
                             <span class="toggle-icon">📷</span>
                             <span class="toggle-text">이미지 모드</span>
@@ -393,8 +419,9 @@
                                         </button>
                                     </div>
                                     <div class="flex w-full gap-2">
-                                        <input id="pullModelInput" class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" placeholder="모델 태그 입력(예: mistral:7b)">
-                                        <button id="pullModelBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition" onclick="pullModel()">
+                                        <label for="pullModelInput1" class="sr-only">모델 태그 입력</label>
+                                        <input id="pullModelInput1" name="pullModelInput1" class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" placeholder="모델 태그 입력(예: mistral:7b)">
+                                        <button id="pullModelBtn1" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition" onclick="pullModel()">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
                                                 <path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path>
                                                 <path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path>
@@ -606,13 +633,15 @@
                                 </button>
                             </div>
                             <div class="flex w-full gap-2">
+                                <label for="pullModelInput2" class="sr-only">모델 태그 입력</label>
                                 <input 
-                                    id="pullModelInput" 
+                                    id="pullModelInput2" 
+                                    name="pullModelInput2"
                                     class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" 
                                     placeholder="모델 태그 입력(예: mistral:7b)"
                                 >
                                 <button 
-                                    id="pullModelBtn"
+                                    id="pullModelBtn2"
                                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition"
                                     onclick="pullModel()"
                                 >

@@ -1749,6 +1749,7 @@ export function forceRenderQueueClear() {
     console.log('🧹 모든 렌더링 큐와 디바운서 강제 정리 완료');
 }
 
+
 // 전역 접근용 (디버깅)
 window.pdfSystemStatus = getSystemStatus;
 window.pdfForceClean = forceRenderQueueClear;
