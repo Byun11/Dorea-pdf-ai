@@ -11,19 +11,26 @@ import os
 from database import get_db, hash_api_key, User
 from typing import Optional
 
-async def verify_api_key(api_key: str) -> bool:
+def verify_api_key(api_key: str) -> bool:
     """OpenAI API 키 유효성 검사"""
     try:
+        print(f"Creating OpenAI client with API key: {api_key[:10]}...")
         client = OpenAI(api_key=api_key)
+        print("OpenAI client created successfully")
         # 간단한 요청으로 키 유효성 확인
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": "test"}],
             max_tokens=1
         )
+        print("API 키 검증 성공")
         return True
     except Exception as e:
-        print(f"API 키 검증 실패: {e}")
+        print(f"API 키 검증 실패 상세 정보:")
+        print(f"에러 타입: {type(e).__name__}")
+        print(f"에러 메시지: {e}")
+        import traceback
+        print(f"스택 트레이스: {traceback.format_exc()}")
         return False
 
 # 기존 API 키 인증 (하위 호환성)

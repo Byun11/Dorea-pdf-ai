@@ -11,6 +11,8 @@ from pathlib import Path
 import chromadb
 from chromadb.config import Settings
 import openai
+import httpx
+import httpx
 import ollama  # ollama 라이브러리 import
 
 # 기존 데이터베이스 모델 import
