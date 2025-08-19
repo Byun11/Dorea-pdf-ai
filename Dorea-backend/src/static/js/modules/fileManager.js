@@ -25,7 +25,6 @@ function setupFileEventListeners() {
     const uploadZone = document.getElementById('uploadZone');
     const fileInput = document.getElementById('fileInput');
     const sidebar = document.querySelector('.sidebar');
-    const fileList = document.getElementById('fileList');
 
     if (uploadZone) {
         uploadZone.addEventListener('dragover', (e) => {
@@ -111,7 +110,6 @@ async function loadUserFiles() {
                 created_at: file.created_at
             }));
 
-            updateFileList();
             
             // waiting 상태 파일들이 있으면 자동으로 처리 시작
             const waitingFiles = fileQueue.filter(f => f.status === 'waiting');
@@ -206,111 +204,10 @@ async function addFileToQueue(file, language = 'ko', hasText = null, useOcr = nu
 
     console.log(`✅ 새 파일 큐에 추가 - ID: ${fileItem.id}, 이름: ${fileItem.name}, 텍스트: ${hasText}, OCR: ${useOcr}`);
     fileQueue.push(fileItem);
-    updateFileList();
     
     return fileItem;
 }
 
-// 파일 목록 업데이트
-function updateFileList() {
-    const fileList = document.getElementById('fileList');
-    if (!fileList) return;
-
-    if (fileQueue.length === 0) {
-        fileList.innerHTML = `
-            <div class="empty-state">
-                <div style="font-size: 3rem; margin-bottom: 1rem;">📁</div>
-                <h3>업로드된 파일이 없습니다</h3>
-                <p style="margin-bottom: 1.5rem;">PDF 파일을 선택하거나 드래그해주세요.</p>
-                <button onclick="document.getElementById('fileInput').click()">
-                    파일 선택하기
-                </button>
-            </div>
-        `;
-        return;
-    }
-
-    const totalFiles = fileQueue.length;
-    const completedFiles = fileQueue.filter(f => f.status === 'completed').length;
-    const processingFiles = fileQueue.filter(f => f.status === 'processing').length;
-    const errorFiles = fileQueue.filter(f => f.status === 'error' || f.status === 'failed').length;
-    const waitingFiles = fileQueue.filter(f => f.status === 'waiting').length;
-
-    fileList.innerHTML = `
-        <div class="file-progress-summary">
-            <div class="progress-row">
-                <span>📊 전체 파일</span>
-                <span><strong>${totalFiles}개</strong></span>
-            </div>
-            <div class="progress-row">
-                <span>✅ 완료</span>
-                <span style="color: #10b981;"><strong>${completedFiles}개</strong></span>
-            </div>
-            ${processingFiles > 0 ? `
-            <div class="progress-row">
-                <span>🔄 처리중</span>
-                <span style="color: #f59e0b;"><strong>${processingFiles}개</strong></span>
-            </div>` : ''}
-            ${waitingFiles > 0 ? `
-            <div class="progress-row">
-                <span>⏳ 대기중</span>
-                <span style="color: #2563eb;"><strong>${waitingFiles}개</strong></span>
-            </div>` : ''}
-            ${errorFiles > 0 ? `
-            <div class="progress-row">
-                <span>❌ 오류</span>
-                <span style="color: #ef4444;"><strong>${errorFiles}개</strong></span>
-            </div>` : ''}
-        </div>
-        ${fileQueue.map(file => {
-            const isActive = file.id === currentFileId;
-            const canSelect = file.status === 'completed';
-
-            const statusEmoji = {
-                'checking': '🔍',
-                'waiting': '⏳',
-                'processing': '🔄',
-                'completed': '✅',
-                'error': '❌',
-                'failed': '❌',
-                'cancelled': '🚫'
-            };
-
-            return `
-                <div class="file-item ${file.status} ${isActive ? 'active' : ''}" 
-                     data-file-id="${file.id}"
-                     ${canSelect ? `onclick="window.fileManager.selectFile('${file.id}')"` : ''}
-                     style="cursor: ${canSelect ? 'pointer' : 'default'};">
-                    <div class="file-header">
-                        <div class="file-main-info">
-                            <div class="file-name">${file.name}</div>
-                            <div class="file-meta">
-                                ${file.file_size ? formatFileSize(file.file_size) : ''} 
-                                ${file.language ? `• ${getLanguageName(file.language)}` : ''}
-                                ${file.segments && file.segments.length ? ` • ${file.segments.length}개 영역` : ''}
-                            </div>
-                            <div class="file-status ${file.status}">
-                                ${statusEmoji[file.status] || '📄'} ${getStatusText(file.status)}
-                            </div>
-                        </div>
-                        <div class="file-actions">
-                            ${file.status === 'processing' ? 
-                                `<button class="file-cancel-btn" onclick="event.stopPropagation(); window.fileManager.cancelFile('${file.id}')" title="처리 중단하고 삭제">×</button>` : ''}
-                            ${file.status === 'waiting' ? 
-                                `<button class="file-cancel-btn" onclick="event.stopPropagation(); window.fileManager.cancelFile('${file.id}')" title="처리 중단">⏸</button>
-                                 <button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
-                            ${file.status === 'error' || file.status === 'failed' ? 
-                                `<button class="file-retry-btn" onclick="event.stopPropagation(); window.fileManager.retryFile('${file.id}')" title="다시 처리하기">🔄</button>
-                                 <button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
-                            ${file.status === 'completed' || file.status === 'cancelled' ?
-                                `<button class="file-delete-btn" onclick="event.stopPropagation(); window.fileManager.deleteFile('${file.id}')" title="파일 삭제">×</button>` : ''}
-                        </div>
-                    </div>
-                    ${file.error ? `<div style="font-size: 11px; color: #ef4444; margin-top: 0.5rem; padding: 0.5rem; background: rgba(239, 68, 68, 0.1); border-radius: 6px;">❌ ${file.error}</div>` : ''}
-                </div>`;
-        }).join('')}
-    `;
-}
 
 // 파일 선택
 export async function selectFile(fileId) {
@@ -379,7 +276,6 @@ async function loadFileFromDatabase(fileId, fileItem) {
         document.dispatchEvent(event);
 
         currentFileId = fileId;
-        updateFileList();
         showNotification(`${file.filename} 로드 완료!`, 'success');
 
         // 파일 완전 로드 완료
@@ -414,7 +310,6 @@ export async function cancelFile(fileId) {
             
             // 큐에서 제거
             fileQueue = fileQueue.filter(f => f.id !== fileId);
-            updateFileList();
             
             showNotification(`${fileItem.name} 처리를 중단하고 삭제했습니다.`, 'success');
             
@@ -424,7 +319,6 @@ export async function cancelFile(fileId) {
             // 삭제 실패 시 취소 상태로 설정
             fileItem.status = 'cancelled';
             fileItem.error = '처리 중단됨 (삭제 실패)';
-            updateFileList();
             
             showNotification(`${fileItem.name} 처리를 중단했지만 삭제 실패`, 'warning');
         }
@@ -444,7 +338,6 @@ export async function cancelFile(fileId) {
         
         // 큐에서 제거
         fileQueue = fileQueue.filter(f => f.id !== fileId);
-        updateFileList();
         
         // 폴더 트리도 새로고침  
         if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
@@ -471,7 +364,6 @@ export async function deleteFile(fileId) {
 
         if (response.ok) {
             fileQueue = fileQueue.filter(f => f.id !== fileId);
-            updateFileList();
 
             if (currentFileId === fileId) {
                 // 파일 삭제 이벤트 발생
@@ -509,7 +401,6 @@ async function processNextFile() {
     
     processingQueue = true;
     waitingFile.status = 'processing';
-    updateFileList();
     
     // 폴더 트리도 즉시 업데이트 (waiting → processing)
     if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
@@ -669,7 +560,6 @@ async function processNextFile() {
         }
     }
 
-    updateFileList();
     
     // 폴더 트리 새로고침 (성공/실패 관계없이)
     if (window.folderTreeManager && window.folderTreeManager.loadFolderTree) {
@@ -793,7 +683,6 @@ export async function retryFile(fileId) {
     fileItem.pdfDoc = null;
     
     // 파일 리스트 업데이트
-    updateFileList();
     
     // 서버 DB 상태도 waiting으로 변경 (폴더 트리에서 waiting 상태 표시)
     try {

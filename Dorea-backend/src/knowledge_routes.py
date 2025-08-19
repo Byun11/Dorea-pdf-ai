@@ -337,6 +337,32 @@ async def cancel_file_embedding(
             detail="서버 내부 오류가 발생했습니다"
         )
 
+@router.post("/reembed-inconsistent")
+async def reembed_inconsistent_files(
+    current_user = Depends(get_current_user)
+):
+    """모델 불일치 파일들 재임베딩"""
+    try:
+        user_id = current_user.id
+        result = await knowledge_manager.reembed_inconsistent_files(user_id)
+        
+        if result["success"]:
+            return result
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=result["message"]
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"재임베딩 요청 중 오류: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="서버 내부 오류가 발생했습니다"
+        )
+
 @router.post("/search")
 async def search_documents(
     request: SearchRequest,

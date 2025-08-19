@@ -17,6 +17,7 @@ import ollama  # ollama 라이브러리 import
 
 # 기존 데이터베이스 모델 import
 from database import SessionLocal, EmbeddingSettings, FileEmbedding, User
+from sqlalchemy import or_
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -317,7 +318,7 @@ class KnowledgeManager:
                         # 청킹된 결과: (embeddings, chunk_mapping, chunks)
                         batch_embeddings, chunk_mapping, chunk_texts = result
                         
-                        # 청크별 ID와 메타데이터 생성
+                        # 청크별 ID와 메타데이터 생성 (원본 복사 + 내용만 수정)
                         chunk_ids = []
                         chunk_metadatas = []
                         chunk_index = 0
@@ -326,14 +327,23 @@ class KnowledgeManager:
                             orig_chunks_count = chunk_mapping.count(j)
                             for k in range(orig_chunks_count):
                                 chunk_ids.append(f"{file_id}_{i+j}_{k}")
-                                chunk_metadatas.append({
-                                    'file_id': file_id, 'user_id': str(user_id),
-                                    'chunk_index': i+j, 'sub_chunk': k,
+                                
+                                # 원본 메타데이터 복사 후 청크별 수정
+                                metadata = {
+                                    'file_id': file_id, 
+                                    'user_id': str(user_id),
+                                    'chunk_index': i+j, 
+                                    'sub_chunk': k,
                                     'segment_type': segment.get('type', 'text'),
                                     'page_number': int(segment.get('page_number', 1)),
-                                    'text_length': len(chunk_texts[chunk_index + k]),
-                                    'original_segment_length': len(segment['text'])
-                                })
+                                    'text_length': len(chunk_texts[chunk_index + k])
+                                }
+                                # 원본 segment의 다른 필드들도 복사
+                                for key, value in segment.items():
+                                    if key not in ['text'] and key not in metadata:
+                                        metadata[key] = value
+                                        
+                                chunk_metadatas.append(metadata)
                             chunk_index += orig_chunks_count
                         
                         logger.info(f"🔍 청킹 임베딩 결과: {len(batch_embeddings)}개 청크 (원본 {len(batch_texts)}개)")
@@ -455,6 +465,14 @@ class KnowledgeManager:
                                 text: str, user_id: int) -> Optional[List[float]]:
         """단일 텍스트 임베딩 생성"""
         batch_result = await self._generate_batch_embeddings(provider, model_name, [text], user_id)
+        
+        # Ollama 청킹 결과 처리
+        if isinstance(batch_result, tuple) and len(batch_result) == 3:
+            embeddings, chunk_mapping, chunks = batch_result
+            # 첫 번째 텍스트의 첫 번째 청크 임베딩 반환
+            return embeddings[0] if embeddings else None
+        
+        # 일반 배치 결과 처리
         return batch_result[0] if batch_result else None
     
     async def _generate_openai_batch_embeddings(self, model_name: str, texts: List[str], user_id: int) -> Optional[List[List[float]]]:
@@ -650,6 +668,98 @@ class KnowledgeManager:
             collection.delete(ids=results['ids'])
             logger.info(f"기존 임베딩 삭제: {file_id}, {len(results['ids'])}개")
     
+    async def _check_embedding_consistency(self, user_id: int, current_settings: Dict, file_id: str = None) -> List[Dict]:
+        """임베딩 모델 통일성 체크"""
+        try:
+            # 특정 파일만 체크하는 경우
+            if file_id:
+                embedding = self.db.query(FileEmbedding).filter_by(
+                    user_id=user_id, file_id=file_id, status='completed'
+                ).first()
+                
+                if embedding and (embedding.provider != current_settings['provider'] or 
+                                embedding.model_name != current_settings['model_name']):
+                    return [{
+                        'file_id': embedding.file_id,
+                        'filename': embedding.filename,
+                        'existing_model': f"{embedding.provider}:{embedding.model_name}",
+                        'current_model': f"{current_settings['provider']}:{current_settings['model_name']}"
+                    }]
+                return []
+            
+            # 전체 파일 체크
+            inconsistent_embeddings = self.db.query(FileEmbedding).filter(
+                FileEmbedding.user_id == user_id,
+                FileEmbedding.status == 'completed',
+                or_(
+                    FileEmbedding.provider != current_settings['provider'],
+                    FileEmbedding.model_name != current_settings['model_name']
+                )
+            ).all()
+            
+            result = []
+            for embedding in inconsistent_embeddings:
+                result.append({
+                    'file_id': embedding.file_id,
+                    'filename': embedding.filename,
+                    'existing_model': f"{embedding.provider}:{embedding.model_name}",
+                    'current_model': f"{current_settings['provider']}:{current_settings['model_name']}"
+                })
+            
+            return result
+        except Exception as e:
+            logger.error(f"임베딩 통일성 체크 실패: {e}")
+            return []
+    
+    async def reembed_inconsistent_files(self, user_id: int) -> Dict[str, Any]:
+        """모델 불일치 파일들 재임베딩"""
+        try:
+            settings = await self.get_user_settings(user_id)
+            if not settings:
+                return {"success": False, "message": "임베딩 설정이 없습니다"}
+            
+            inconsistent_files = await self._check_embedding_consistency(user_id, settings)
+            if not inconsistent_files:
+                return {"success": True, "message": "재임베딩이 필요한 파일이 없습니다", "count": 0}
+            
+            success_count = 0
+            failed_files = []
+            
+            for file_info in inconsistent_files:
+                file_id = file_info['file_id']
+                filename = file_info['filename']
+                
+                try:
+                    # 기존 임베딩 삭제 후 재생성
+                    await self.delete_file_embedding(user_id, file_id)
+                    success = await self.create_file_embedding(user_id, file_id, filename)
+                    
+                    if success:
+                        success_count += 1
+                        logger.info(f"✅ 재임베딩 시작: {filename}")
+                    else:
+                        failed_files.append(filename)
+                        logger.error(f"❌ 재임베딩 실패: {filename}")
+                        
+                except Exception as e:
+                    failed_files.append(filename)
+                    logger.error(f"❌ 재임베딩 오류: {filename} - {e}")
+            
+            message = f"{success_count}개 파일의 재임베딩을 시작했습니다."
+            if failed_files:
+                message += f" (실패: {len(failed_files)}개)"
+            
+            return {
+                "success": True, 
+                "message": message,
+                "count": success_count,
+                "failed_files": failed_files
+            }
+            
+        except Exception as e:
+            logger.error(f"일괄 재임베딩 실패: {e}")
+            return {"success": False, "message": f"재임베딩 중 오류 발생: {str(e)}"}
+
     async def delete_file_embedding(self, user_id: int, file_id: str) -> bool:
         """파일의 임베딩 삭제"""
         try:
@@ -678,6 +788,18 @@ class KnowledgeManager:
                 logger.error(f"❌ 사용자 {user_id}의 임베딩 설정이 없습니다. RAG 검색을 위해서는 먼저 임베딩 모델을 설정해주세요.")
                 return []
             
+            # 임베딩 모델 통일성 체크
+            inconsistent_files = await self._check_embedding_consistency(user_id, settings, file_id)
+            if inconsistent_files:
+                logger.warning(f"⚠️ 임베딩 모델 불일치 감지: {len(inconsistent_files)}개 파일")
+                # 불일치 정보를 결과에 포함시켜 프론트엔드에서 알림 표시
+                return [{
+                    "type": "embedding_inconsistency_warning", 
+                    "inconsistent_files": inconsistent_files,
+                    "current_model": f"{settings['provider']}:{settings['model_name']}",
+                    "message": f"현재 설정된 임베딩 모델({settings['provider']}:{settings['model_name']})과 다른 모델로 임베딩된 파일들이 있습니다."
+                }]
+            
             query_embedding = await self._generate_embedding(
                 settings['provider'], settings['model_name'], query, user_id
             )
@@ -685,7 +807,12 @@ class KnowledgeManager:
                 logger.error(f"❌ 질문 임베딩 생성 실패: query='{query}', provider={settings['provider']}, model={settings['model_name']}")
                 return []
             
-            logger.info(f"✅ 질문 임베딩 생성 성공: 차원={len(query_embedding)}, 첫 5개 값={query_embedding[:5]}")
+            # 임베딩 검증
+            if not isinstance(query_embedding, list) or not query_embedding:
+                logger.error(f"❌ 잘못된 임베딩 형식: {type(query_embedding)}")
+                return []
+            
+            logger.info(f"✅ 질문 임베딩 생성 성공: 차원={len(query_embedding)}")
             
             collection_name = f"user_{user_id}_documents"
             try:
