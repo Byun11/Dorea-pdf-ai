@@ -963,7 +963,7 @@ class KnowledgeManager {
     }
 
     // 임베딩 모델 선택
-    selectEmbeddingModel(element) {
+    async selectEmbeddingModel(element) {
         console.log('🎯 모델 공급자 선택:', element.dataset.model);
         
         document.querySelectorAll('.model-option').forEach(option => {
@@ -976,8 +976,115 @@ class KnowledgeManager {
         // 설정 영역 표시/숨김
         this.toggleModelSettings(modelProvider);
         
-        // 저장은 각 모델의 select 요소의 change 이벤트에서 처리됩니다.
+        // 선택된 모델에 따라 자동으로 설정 저장
+        await this.autoSaveModelSelection(modelProvider);
     }
+
+    // 모델 선택시 자동 설정 저장
+    async autoSaveModelSelection(modelProvider) {
+        try {
+            let settings = null;
+            
+            if (modelProvider === 'ollama') {
+                // Ollama 모델 선택시 - 현재 선택된 모델이 있으면 사용, 없으면 기본값 사용
+                const modelSelect = document.getElementById('ollamaEmbeddingModel');
+                let selectedModel = modelSelect?.value || '';
+                
+                // 선택된 모델이 없으면 첫 번째 유효한 모델 사용
+                if (!selectedModel || selectedModel === '') {
+                    const options = modelSelect?.querySelectorAll('option:not([disabled])');
+                    if (options && options.length > 1) { // 첫 번째는 보통 placeholder
+                        selectedModel = options[1].value;
+                        modelSelect.value = selectedModel;
+                    }
+                }
+                
+                if (selectedModel && selectedModel !== '') {
+                    settings = {
+                        model: 'ollama',
+                        ollama_model: selectedModel
+                    };
+                }
+            } else if (modelProvider === 'openai') {
+                // OpenAI 모델 선택시 - 기본값 사용
+                const modelSelect = document.getElementById('openaiEmbeddingModel');
+                const selectedModel = modelSelect?.value || 'text-embedding-3-small';
+                
+                settings = {
+                    model: 'openai',
+                    openai_model: selectedModel
+                };
+            }
+            
+            // 설정이 준비되면 저장
+            if (settings) {
+                console.log('🔄 자동 설정 저장:', settings);
+                await this.saveEmbeddingSettings(settings);
+            }
+        } catch (error) {
+            console.error('자동 설정 저장 실패:', error);
+            // 자동 저장 실패는 사용자에게 알리지 않음 (시스템 로그만)
+        }
+    }
+
+    // Ollama 모델 삭제
+    async deleteModel() {
+        const deleteSelect = document.getElementById('embeddingDeleteModelSelect');
+        if (!deleteSelect) {
+            console.error('삭제 모델 선택 요소를 찾을 수 없습니다');
+            return;
+        }
+
+        const modelName = deleteSelect.value;
+        if (!modelName) {
+            showNotification('삭제할 모델을 선택해주세요.', 'warning');
+            return;
+        }
+
+        // 확인 대화상자
+        if (!confirm(`정말로 "${modelName}" 모델을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+            return;
+        }
+
+        const deleteBtn = document.getElementById('embeddingDeleteModelBtn');
+        const originalText = deleteBtn?.innerHTML || '🗑️';
+        
+        try {
+            if (deleteBtn) {
+                deleteBtn.innerHTML = '⏳ 삭제 중...';
+                deleteBtn.disabled = true;
+            }
+
+            const token = localStorage.getItem('token');
+            const response = await fetch('/api/models/local/delete', {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ model_name: modelName }) // model -> model_name으로 수정
+            });
+
+            const result = await response.json();
+            
+            if (response.ok) {
+                showNotification(`✅ 모델 "${modelName}"이 삭제되었습니다.`, 'success');
+                // 모델 목록 새로고침
+                await this.loadOllamaModels();
+            } else {
+                showNotification(`❌ 모델 삭제 실패: ${result.detail || result.message || '알 수 없는 오류'}`, 'error');
+            }
+        } catch (error) {
+            console.error('모델 삭제 실패:', error);
+            showNotification('모델 삭제 중 오류가 발생했습니다.', 'error');
+        } finally {
+            if (deleteBtn) {
+                deleteBtn.disabled = false;
+                deleteBtn.innerHTML = originalText;
+            }
+        }
+    }
+
 
     
 
