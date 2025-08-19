@@ -19,68 +19,99 @@ function createSourcesButton(similarDocs) {
     const sourcesJson = JSON.stringify(sourcesData).replace(/"/g, '&quot;');
     
     return `
-        <div class="sources-container">
-            <button class="sources-toggle-btn" onclick="toggleSources(this)" data-sources="${sourcesJson}">
-                <span class="sources-icon">🔗</span>
-                <span class="sources-text">출처 ${similarDocs.length}개</span>
-                <span class="sources-arrow">▼</span>
+        <div class="rag-sources-container">
+            <button class="rag-sources-toggle-btn" onclick="toggleSources(this)" data-sources="${sourcesJson}">
+                <span class="rag-sources-icon">🔗</span>
+                <span class="rag-sources-text">출처 ${similarDocs.length}개</span>
+                <span class="rag-sources-arrow">▼</span>
             </button>
-            <div class="sources-panel" style="display: none;"></div>
+            <div class="rag-sources-panel" style="display: none;"></div>
         </div>
     `;
 }
 
 // 출처 패널 토글 함수
 function toggleSources(button) {
-    const panel = button.parentNode.querySelector('.sources-panel');
-    const arrow = button.querySelector('.sources-arrow');
-    const isVisible = panel.style.display !== 'none';
+    const panel = button.parentNode.querySelector('.rag-sources-panel');
+    const arrow = button.querySelector('.rag-sources-arrow');
+    const isVisible = panel.classList.contains('show');
+    const chatContainer = document.getElementById('chatContainer');
     
     if (isVisible) {
-        panel.style.display = 'none';
+        // 패널 닫기
+        panel.classList.remove('show');
         arrow.textContent = '▼';
         button.classList.remove('active');
+        
+        // 저장된 스크롤 위치로 즉시 복원
+        if (chatContainer && button.dataset.savedScrollTop !== undefined) {
+            console.log('스크롤 복원:', button.dataset.savedScrollTop);
+            chatContainer.scrollTop = parseInt(button.dataset.savedScrollTop);
+            delete button.dataset.savedScrollTop;
+        }
         return;
+    }
+    
+    // 다른 모든 출처 패널 닫기 및 스크롤 복원
+    document.querySelectorAll('.rag-sources-panel.show').forEach(otherPanel => {
+        const otherButton = otherPanel.parentNode.querySelector('.rag-sources-toggle-btn');
+        const otherArrow = otherButton.querySelector('.rag-sources-arrow');
+        otherPanel.classList.remove('show');
+        otherArrow.textContent = '▼';
+        otherButton.classList.remove('active');
+        
+        // 다른 패널들의 스크롤 위치도 복원
+        if (chatContainer && otherButton.dataset.savedScrollTop !== undefined) {
+            console.log('다른 패널 스크롤 복원:', otherButton.dataset.savedScrollTop);
+            chatContainer.scrollTop = parseInt(otherButton.dataset.savedScrollTop);
+            delete otherButton.dataset.savedScrollTop;
+        }
+    });
+    
+    // 현재 스크롤 위치 저장
+    if (chatContainer) {
+        button.dataset.savedScrollTop = chatContainer.scrollTop;
+        console.log('스크롤 위치 저장:', chatContainer.scrollTop);
     }
     
     // 소스 데이터 파싱
     const sourcesData = JSON.parse(button.getAttribute('data-sources').replace(/&quot;/g, '"'));
     
     const typeMap = {
-        'text': { icon: '📝', name: '텍스트', color: '#64748b' },
-        'Text': { icon: '📝', name: '텍스트', color: '#64748b' },
+        'text': { icon: '📄', name: '텍스트', color: '#64748b' },
+        'Text': { icon: '📄', name: '텍스트', color: '#64748b' },
         'Picture': { icon: '🖼️', name: '이미지', color: '#8b5cf6' },
         'Figure': { icon: '📊', name: '도표', color: '#06b6d4' },
         'Table': { icon: '📋', name: '표', color: '#10b981' },
-        'Title': { icon: '🏷️', name: '제목', color: '#f59e0b' },
+        'Title': { icon: '📌', name: '제목', color: '#f59e0b' },
         'Caption': { icon: '💬', name: '캡션', color: '#6366f1' },
-        'Page header': { icon: '🔝', name: '헤더', color: '#84cc16' },
-        'Page footer': { icon: '🔻', name: '푸터', color: '#ef4444' }
+        'Page header': { icon: '🔝', name: '머리글', color: '#84cc16' },
+        'Page footer': { icon: '🔻', name: '바닥글', color: '#ef4444' }
     };
     
     const sourcesHTML = `
-        <div class="sources-header">
-            <h4>참조된 출처</h4>
-            <span class="sources-count">${sourcesData.length}개 문서</span>
+        <div class="rag-sources-header">
+            <h4>📚 참조 출처</h4>
+            <span class="rag-sources-count">${sourcesData.length}개</span>
         </div>
-        <div class="sources-list">
+        <div class="rag-sources-list">
             ${sourcesData.map((doc, index) => {
                 const typeInfo = typeMap[doc.docType] || { icon: '📄', name: doc.docType || '텍스트', color: '#64748b' };
-                const onclickHandler = doc.pageNum !== '?' ? `jumpToPage(${doc.pageNum}); toggleSources(this.closest('.sources-container').querySelector('.sources-toggle-btn'))` : 'void(0)';
+                const onclickHandler = doc.pageNum !== '?' ? `jumpToPage(${doc.pageNum}); toggleSources(this.closest('.rag-sources-container').querySelector('.rag-sources-toggle-btn'))` : 'void(0)';
                 
                 return `
-                    <div class="source-card" onclick="${onclickHandler}" style="--type-color: ${typeInfo.color}">
-                        <div class="source-header">
-                            <div class="source-type">
-                                <span class="source-emoji">${typeInfo.icon}</span>
-                                <span class="source-type-name">${typeInfo.name}</span>
+                    <div class="rag-sources-card" onclick="${onclickHandler}" style="--type-color: ${typeInfo.color}">
+                        <div class="rag-sources-header">
+                            <div class="rag-sources-type">
+                                <span class="rag-sources-emoji">${typeInfo.icon}</span>
+                                <span class="rag-sources-type-name">${typeInfo.name}</span>
                             </div>
-                            <div class="source-meta">
-                                <span class="source-page">P.${doc.pageNum}</span>
-                                <span class="source-similarity">${doc.similarity}%</span>
+                            <div class="rag-sources-meta">
+                                <span class="rag-sources-page">${doc.pageNum}p</span>
+                                <span class="rag-sources-similarity">${Math.abs(parseFloat(doc.similarity)).toFixed(1)}%</span>
                             </div>
                         </div>
-                        <div class="source-content">${doc.preview}</div>
+                        <div class="rag-sources-content">${doc.preview}</div>
                     </div>
                 `;
             }).join('')}
@@ -89,6 +120,7 @@ function toggleSources(button) {
     
     panel.innerHTML = sourcesHTML;
     panel.style.display = 'block';
+    panel.classList.add('show');
     arrow.textContent = '▲';
     button.classList.add('active');
     
@@ -1821,6 +1853,29 @@ function initializeChat() {
     initializeRagMode();
     console.log('💬 Chat 모듈 초기화 완료');
 }
+
+// 출처 패널 외부 클릭 이벤트 처리
+document.addEventListener('click', function(event) {
+    // 출처 버튼이나 패널 내부를 클릭한 경우가 아니라면 모든 패널 닫기
+    if (!event.target.closest('.rag-sources-container')) {
+        const chatContainer = document.getElementById('chatContainer');
+        
+        document.querySelectorAll('.rag-sources-panel.show').forEach(panel => {
+            const button = panel.parentNode.querySelector('.rag-sources-toggle-btn');
+            const arrow = button.querySelector('.rag-sources-arrow');
+            panel.classList.remove('show');
+            arrow.textContent = '▼';
+            button.classList.remove('active');
+            
+            // 저장된 스크롤 위치로 즉시 복원
+            if (chatContainer && button.dataset.savedScrollTop !== undefined) {
+                console.log('외부클릭 스크롤 복원:', button.dataset.savedScrollTop);
+                chatContainer.scrollTop = parseInt(button.dataset.savedScrollTop);
+                delete button.dataset.savedScrollTop;
+            }
+        });
+    }
+});
 
 // 전역 함수 등록
 window.toggleRagMode = toggleRagMode;
