@@ -191,31 +191,7 @@ body {
     box-shadow: var(--shadow-md);
 }
 
-.file-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: var(--space-4);
-}
 
-.file-progress-summary {
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-primary);
-    border-radius: var(--radius-lg);
-    padding: var(--space-4);
-    margin-bottom: var(--space-4);
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-.progress-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: var(--space-1);
-}
-
-.progress-row:last-child {
-    margin-bottom: 0;
-}
 
 .file-item {
     background: var(--bg-secondary);

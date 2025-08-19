@@ -4,7 +4,7 @@
 
 import { fetchApi, showNotification, getCurrentTime } from './utils.js';
 
-// 미니멀한 출처 버튼 생성
+// 개선된 출처 버튼 생성
 function createSourcesButton(similarDocs) {
     if (!similarDocs || similarDocs.length === 0) return '';
     
@@ -12,29 +12,34 @@ function createSourcesButton(similarDocs) {
         pageNum: doc.metadata?.page_number || doc.page_number || doc.page || '?',
         docType: doc.metadata?.segment_type || doc.type || 'Text',
         similarity: doc.distance !== undefined ? ((1 - doc.distance) * 100).toFixed(1) : '?',
-        preview: doc.text ? doc.text.substring(0, 100) + '...' : '내용 없음'
+        preview: doc.text ? doc.text.substring(0, 80) + '...' : '내용 없음'
     }));
     
     // JSON 데이터를 버튼에 저장
     const sourcesJson = JSON.stringify(sourcesData).replace(/"/g, '&quot;');
     
     return `
-        <div class="sources-button-container">
-            <button class="sources-button" onclick="toggleSources(this)" data-sources="${sourcesJson}">
-                📄 출처 ${similarDocs.length}개
+        <div class="sources-container">
+            <button class="sources-toggle-btn" onclick="toggleSources(this)" data-sources="${sourcesJson}">
+                <span class="sources-icon">🔗</span>
+                <span class="sources-text">출처 ${similarDocs.length}개</span>
+                <span class="sources-arrow">▼</span>
             </button>
-            <div class="sources-dropdown" style="display: none;"></div>
+            <div class="sources-panel" style="display: none;"></div>
         </div>
     `;
 }
 
-// 출처 드롭다운 토글 함수
+// 출처 패널 토글 함수
 function toggleSources(button) {
-    const dropdown = button.parentNode.querySelector('.sources-dropdown');
-    const isVisible = dropdown.style.display !== 'none';
+    const panel = button.parentNode.querySelector('.sources-panel');
+    const arrow = button.querySelector('.sources-arrow');
+    const isVisible = panel.style.display !== 'none';
     
     if (isVisible) {
-        dropdown.style.display = 'none';
+        panel.style.display = 'none';
+        arrow.textContent = '▼';
+        button.classList.remove('active');
         return;
     }
     
@@ -42,35 +47,74 @@ function toggleSources(button) {
     const sourcesData = JSON.parse(button.getAttribute('data-sources').replace(/&quot;/g, '"'));
     
     const typeMap = {
-        'text': { icon: '📝', name: '텍스트' },
-        'Text': { icon: '📝', name: '텍스트' },
-        'Picture': { icon: '🖼️', name: '이미지' },
-        'Figure': { icon: '📊', name: '도표' },
-        'Table': { icon: '📋', name: '표' },
-        'Title': { icon: '🏷️', name: '제목' },
-        'Caption': { icon: '💬', name: '캡션' },
-        'Page header': { icon: '🔝', name: '헤더' },
-        'Page footer': { icon: '🔻', name: '푸터' }
+        'text': { icon: '📝', name: '텍스트', color: '#64748b' },
+        'Text': { icon: '📝', name: '텍스트', color: '#64748b' },
+        'Picture': { icon: '🖼️', name: '이미지', color: '#8b5cf6' },
+        'Figure': { icon: '📊', name: '도표', color: '#06b6d4' },
+        'Table': { icon: '📋', name: '표', color: '#10b981' },
+        'Title': { icon: '🏷️', name: '제목', color: '#f59e0b' },
+        'Caption': { icon: '💬', name: '캡션', color: '#6366f1' },
+        'Page header': { icon: '🔝', name: '헤더', color: '#84cc16' },
+        'Page footer': { icon: '🔻', name: '푸터', color: '#ef4444' }
     };
     
-    const sourcesHTML = sourcesData.map(doc => {
-        const typeInfo = typeMap[doc.docType] || { icon: '📄', name: doc.docType || '텍스트' };
-        const onclickHandler = doc.pageNum !== '?' ? `jumpToPage(${doc.pageNum}); toggleSources(this.closest('.sources-button-container').querySelector('.sources-button'))` : 'void(0)';
-        
-        return `
-            <div class="source-item" onclick="${onclickHandler}">
-                <div class="source-info">
-                    <span class="source-icon">${typeInfo.icon}</span>
-                    <span class="source-title">페이지 ${doc.pageNum} - ${typeInfo.name}</span>
-                    <span class="source-similarity">${doc.similarity}%</span>
-                </div>
-                <div class="source-preview">${doc.preview}</div>
-            </div>
-        `;
-    }).join('');
+    const sourcesHTML = `
+        <div class="sources-header">
+            <h4>참조된 출처</h4>
+            <span class="sources-count">${sourcesData.length}개 문서</span>
+        </div>
+        <div class="sources-list">
+            ${sourcesData.map((doc, index) => {
+                const typeInfo = typeMap[doc.docType] || { icon: '📄', name: doc.docType || '텍스트', color: '#64748b' };
+                const onclickHandler = doc.pageNum !== '?' ? `jumpToPage(${doc.pageNum}); toggleSources(this.closest('.sources-container').querySelector('.sources-toggle-btn'))` : 'void(0)';
+                
+                return `
+                    <div class="source-card" onclick="${onclickHandler}" style="--type-color: ${typeInfo.color}">
+                        <div class="source-header">
+                            <div class="source-type">
+                                <span class="source-emoji">${typeInfo.icon}</span>
+                                <span class="source-type-name">${typeInfo.name}</span>
+                            </div>
+                            <div class="source-meta">
+                                <span class="source-page">P.${doc.pageNum}</span>
+                                <span class="source-similarity">${doc.similarity}%</span>
+                            </div>
+                        </div>
+                        <div class="source-content">${doc.preview}</div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
     
-    dropdown.innerHTML = sourcesHTML;
-    dropdown.style.display = 'block';
+    panel.innerHTML = sourcesHTML;
+    panel.style.display = 'block';
+    arrow.textContent = '▲';
+    button.classList.add('active');
+    
+    // 패널 위치 조정
+    adjustDropdownPosition(button, panel);
+}
+
+// 드롭다운 표시 후 스크롤 조정하는 함수
+function adjustDropdownPosition(button, dropdown) {
+    const chatContainer = document.getElementById('chatContainer');
+    if (!chatContainer) return;
+    
+    // 드롭다운이 표시된 후 스크롤 조정
+    setTimeout(() => {
+        const containerRect = chatContainer.getBoundingClientRect();
+        const dropdownRect = dropdown.getBoundingClientRect();
+        
+        // 드롭다운이 컨테이너 밖으로 나간 경우 스크롤 조정
+        if (dropdownRect.bottom > containerRect.bottom) {
+            const scrollAmount = dropdownRect.bottom - containerRect.bottom + 20; // 20px 여유공간
+            chatContainer.scrollBy({
+                top: scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    }, 10);
 }
 
 // 첨부된 세그먼트들의 HTML 표시 생성
@@ -591,6 +635,13 @@ async function performVectorSearch(query, fileId) {
     const searchData = await searchResponse.json();
     const similarDocs = searchData.results || [];
     
+    // 임베딩 모델 불일치 경고 체크
+    if (similarDocs.length > 0 && similarDocs[0]?.type === 'embedding_inconsistency_warning') {
+        const warningData = similarDocs[0];
+        showEmbeddingInconsistencyWarning(warningData);
+        return []; // 검색 결과 없음으로 처리
+    }
+    
     console.log('🔍 [DEBUG] 벡터 검색 결과:', similarDocs.length, '개 문서');
     console.log('🔍 [DEBUG] 첫 번째 검색 결과 샘플:', similarDocs[0]);
     
@@ -764,6 +815,11 @@ ${contextTexts}
         showNotification('RAG 검색에 실패했습니다.', 'error');
     } finally {
         isTyping = false;
+        const sendBtn = document.getElementById('sendBtn');
+        const chatInput = document.getElementById('chatInput');
+        if (sendBtn && chatInput) {
+            sendBtn.disabled = !chatInput.value.trim();
+        }
     }
 }
 
@@ -960,6 +1016,11 @@ async function processMessage(message, selectedSegments = null) {
         showNotification('채팅 전송에 실패했습니다.', 'error');
     } finally {
         isTyping = false;
+        const sendBtn = document.getElementById('sendBtn');
+        const chatInput = document.getElementById('chatInput');
+        if (sendBtn && chatInput) {
+            sendBtn.disabled = !chatInput.value.trim();
+        }
     }
 }
 
@@ -1606,6 +1667,11 @@ async function handleSegmentImagesAttachment(images, segments, message) {
         showNotification('이미지 분석에 실패했습니다.', 'error');
     } finally {
         isTyping = false;
+        const sendBtn = document.getElementById('sendBtn');
+        const chatInput = document.getElementById('chatInput');
+        if (sendBtn && chatInput) {
+            sendBtn.disabled = !chatInput.value.trim();
+        }
     }
 }
 
@@ -1709,6 +1775,44 @@ function jumpToPage(pageNumber) {
         showNotification(`페이지 ${pageNumber}로 이동했습니다.`, 'success');
     } else {
         console.warn('PDF 뷰어를 찾을 수 없습니다.');
+    }
+}
+
+// 임베딩 모델 불일치 경고 표시
+function showEmbeddingInconsistencyWarning(warningData) {
+    console.warn('⚠️ 임베딩 모델 불일치 감지:', warningData);
+    
+    import('./utils.js').then(({ showNotification }) => {
+        const fileCount = warningData.inconsistent_files?.length || 0;
+        const currentModel = warningData.current_model || '알 수 없음';
+        
+        const message = `현재 설정된 임베딩 모델(${currentModel})과 다른 모델로 임베딩된 파일이 ${fileCount}개 있습니다.\n\nRAG 검색이 제대로 동작하지 않을 수 있습니다. 설정에서 임베딩 모델을 확인하거나 파일을 재임베딩해주세요.`;
+        
+        showNotification(message, 'warning', 8000); // 8초간 표시
+        
+        // 콘솔에 상세 정보 출력
+        console.group('📊 임베딩 모델 불일치 상세 정보');
+        console.log('현재 모델:', currentModel);
+        console.log('불일치 파일 목록:', warningData.inconsistent_files);
+        console.groupEnd();
+        
+        // 설정 메뉴 강조 효과 (선택적)
+        highlightSettingsButton();
+    }).catch(error => {
+        console.error('알림 표시 실패:', error);
+    });
+}
+
+// 설정 버튼 강조 효과
+function highlightSettingsButton() {
+    const settingsBtn = document.querySelector('.settings-btn');
+    if (settingsBtn) {
+        settingsBtn.style.animation = 'pulse 2s infinite';
+        
+        // 5초 후 애니메이션 제거
+        setTimeout(() => {
+            settingsBtn.style.animation = '';
+        }, 5000);
     }
 }
 
