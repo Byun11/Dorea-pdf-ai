@@ -4,6 +4,50 @@
 
 import { fetchApi, showNotification, getCurrentTime } from './utils.js';
 
+// 컨텍스트 소스 정보를 HTML로 생성
+function createContextSourcesHTML(similarDocs) {
+    if (!similarDocs || similarDocs.length === 0) return '';
+    
+    const sourcesHTML = similarDocs.map((doc, index) => {
+        const pageNum = doc.page_number || doc.page || '?';
+        const docType = doc.type || 'Text';
+        const similarity = doc.similarity ? (doc.similarity * 100).toFixed(1) : '?';
+        const preview = doc.text ? doc.text.substring(0, 100) + '...' : '';
+        
+        const typeMap = {
+            'Text': { icon: '📝', name: '텍스트' },
+            'Picture': { icon: '🖼️', name: '이미지' },
+            'Figure': { icon: '📊', name: '도표' },
+            'Table': { icon: '📋', name: '표' },
+            'Title': { icon: '🏷️', name: '제목' },
+            'Caption': { icon: '💬', name: '캡션' }
+        };
+        
+        const typeInfo = typeMap[docType] || { icon: '📄', name: docType };
+        
+        return `
+            <div class="context-source-item" data-page="${pageNum}" onclick="jumpToPage(${pageNum})">
+                <div class="source-header">
+                    <span class="source-icon">${typeInfo.icon}</span>
+                    <span class="source-title">페이지 ${pageNum} - ${typeInfo.name}</span>
+                    <span class="source-similarity">${similarity}% 유사</span>
+                </div>
+                <div class="source-preview">${preview}</div>
+            </div>
+        `;
+    }).join('');
+    
+    return `
+        <div class="context-sources-header">
+            <div class="sources-title">📚 참고 자료</div>
+            <div class="sources-subtitle">클릭하여 원본 위치로 이동</div>
+        </div>
+        <div class="context-sources-list">
+            ${sourcesHTML}
+        </div>
+    `;
+}
+
 // 첨부된 세그먼트들의 HTML 표시 생성
 function createSegmentAttachmentsHTML(segments) {
     if (!segments || segments.length === 0) return '';
@@ -406,37 +450,8 @@ export function init() {
 
 // RAG 토글 설정
 function setupRagToggle() {
-    // 글로벌 함수로 등록
-    window.toggleRagMode = function() {
-        ragModeEnabled = !ragModeEnabled;
-        console.log('🔍 RAG 모드:', ragModeEnabled ? '활성화' : '비활성화');
-        
-        // 버튼 스타일 업데이트
-        const ragToggleBtn = document.getElementById('ragToggleBtn');
-        if (ragToggleBtn) {
-            if (ragModeEnabled) {
-                ragToggleBtn.classList.add('active');
-            } else {
-                ragToggleBtn.classList.remove('active');
-            }
-        }
-        
-        // 채팅 인풋 플레이스홀더 변경
-        const chatInput = document.getElementById('chatInput');
-        if (chatInput) {
-            chatInput.placeholder = ragModeEnabled ? 
-                '지식 베이스에서 검색하여 답변합니다...' : 
-                '선택한 세그먼트에 대해 질문하세요...';
-        }
-        
-        // 상태 표시 메시지
-        import('./utils.js').then(({ showNotification }) => {
-            showNotification(
-                ragModeEnabled ? 'RAG 모드가 활성화되었습니다' : 'RAG 모드가 비활성화되었습니다',
-                'info'
-            );
-        });
-    };
+    // 설정 메뉴와 통합된 토글 함수는 나중에 등록됨
+    // 초기화 시 체크박스 상태 동기화는 initializeRagMode에서 처리
 }
 
 // 채팅 이벤트 리스너 설정
@@ -591,10 +606,17 @@ ${contextTexts}
         const messageEl = addMessage('', false, true);
         const contentEl = messageEl.querySelector('.message-content');
 
-        // 검색 결과 정보 추가
+        // 검색 결과 정보 및 컨텍스트 소스 추가
         if (similarDocs.length > 0) {
             const searchInfo = `🔍 **검색된 관련 문서:** ${similarDocs.length}개\n\n`;
             typeTextWithEffect(contentEl, searchInfo);
+            
+            // 컨텍스트 소스 정보 표시
+            const sourceInfo = createContextSourcesHTML(similarDocs);
+            const contextContainer = document.createElement('div');
+            contextContainer.className = 'context-sources';
+            contextContainer.innerHTML = sourceInfo;
+            messageEl.appendChild(contextContainer);
         }
 
         // 스트리밍 응답 처리
@@ -686,9 +708,11 @@ async function processMessage(message, selectedSegments = null) {
         selectedSegments = getSelectedSegments();
     }
 
-    // RAG 모드 체크
-    if (ragModeEnabled) {
+    // RAG 모드 체크 - 명시적으로 활성화되어 있거나, 세그먼트가 선택되지 않았을 때 자동 활성화
+    const shouldUseRag = ragModeEnabled || (selectedSegments.length === 0);
+    if (shouldUseRag) {
         console.log('🔍 [DEBUG] RAG 모드로 메시지 처리');
+        console.log(`  - 모드: ${ragModeEnabled ? '명시적 활성화' : '자동 활성화 (세그먼트 없음)'}`);
         await processRagMessage(message);
         return;
     }
@@ -1520,4 +1544,117 @@ async function handleSegmentImagesAttachment(images, segments, message) {
     }
 }
 
-// 전역 함수 등록은 index.js에서 처리하므로 제거
+/* =====================================================
+   RAG 모드 및 설정 메뉴 관리
+   ===================================================== */
+
+// RAG 모드 토글 함수
+function toggleRagMode() {
+    const toggleSwitch = document.getElementById('ragToggleSwitch');
+    
+    if (toggleSwitch) {
+        // 체크박스 상태에 따라 RAG 모드 설정
+        ragModeEnabled = toggleSwitch.checked;
+    } else {
+        // 체크박스가 없으면 토글
+        ragModeEnabled = !ragModeEnabled;
+    }
+    
+    // 업데이트
+    updateChatInputPlaceholder();
+    updateRagSwitchStyles();
+    
+    console.log('🔍 RAG 모드:', ragModeEnabled ? '활성화' : '비활성화');
+    
+    // 상태 표시 메시지
+    import('./utils.js').then(({ showNotification }) => {
+        showNotification(
+            ragModeEnabled ? 'RAG 모드가 활성화되었습니다' : 'RAG 모드가 비활성화되었습니다',
+            'info'
+        );
+    });
+}
+
+// RAG 스위치 스타일 업데이트
+function updateRagSwitchStyles() {
+    const toggleSwitch = document.getElementById('ragToggleSwitch');
+    if (toggleSwitch) {
+        toggleSwitch.checked = ragModeEnabled;
+    }
+}
+
+// 채팅 입력창 플레이스홀더 업데이트
+function updateChatInputPlaceholder() {
+    const chatInput = document.getElementById('chatInput');
+    if (chatInput) {
+        chatInput.placeholder = ragModeEnabled 
+            ? '전체 문서에 대해 질문해보세요...' 
+            : '질문을 입력하세요...';
+    }
+}
+
+// 설정 메뉴 토글 함수
+function toggleSettings() {
+    const settingsMenu = document.getElementById('settingsMenu');
+    console.log('설정 메뉴 토글:', settingsMenu); // 디버깅
+    
+    if (settingsMenu) {
+        const isVisible = !settingsMenu.classList.contains('hidden');
+        
+        console.log('현재 숨김 여부:', settingsMenu.classList.contains('hidden')); // 디버깅
+        
+        if (isVisible) {
+            settingsMenu.classList.add('hidden');
+            document.removeEventListener('click', closeSettingsOnOutsideClick);
+            console.log('메뉴 숨김'); // 디버깅
+        } else {
+            settingsMenu.classList.remove('hidden');
+            document.addEventListener('click', closeSettingsOnOutsideClick);
+            console.log('메뉴 표시'); // 디버깅
+        }
+    } else {
+        console.error('settingsMenu를 찾을 수 없습니다');
+    }
+}
+
+// 외부 클릭 시 설정 메뉴 닫기
+function closeSettingsOnOutsideClick(event) {
+    const settingsMenu = document.getElementById('settingsMenu');
+    const settingsBtn = document.getElementById('chatSettingsBtn');
+    
+    if (settingsMenu && settingsBtn) {
+        if (!settingsMenu.contains(event.target) && !settingsBtn.contains(event.target)) {
+            settingsMenu.classList.add('hidden');
+            document.removeEventListener('click', closeSettingsOnOutsideClick);
+            console.log('외부 클릭으로 메뉴 닫힘'); // 디버깅
+        }
+    }
+}
+
+// 초기화 시 RAG 모드 상태 동기화
+function initializeRagMode() {
+    updateChatInputPlaceholder();
+    updateRagSwitchStyles();
+}
+
+// 페이지로 점프하는 함수
+function jumpToPage(pageNumber) {
+    if (window.pdfViewer && window.pdfViewer.goToPage) {
+        window.pdfViewer.goToPage(pageNumber);
+        showNotification(`페이지 ${pageNumber}로 이동했습니다.`, 'success');
+    } else {
+        console.warn('PDF 뷰어를 찾을 수 없습니다.');
+    }
+}
+
+// 초기화 함수 - 페이지 로드 시 호출
+function initializeChat() {
+    initializeRagMode();
+    console.log('💬 Chat 모듈 초기화 완료');
+}
+
+// 전역 함수 등록
+window.toggleRagMode = toggleRagMode;
+window.toggleSettings = toggleSettings;
+window.jumpToPage = jumpToPage;
+window.initializeChat = initializeChat;

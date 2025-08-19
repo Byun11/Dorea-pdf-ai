@@ -396,7 +396,7 @@ async def update_user_api_key(request: UserApiKeyUpdateRequest, current_user: Us
     current_user.api_key = request.api_key
     db.commit()
     
-    return {"message": "API 키가 성공적으로 업데이트되었습니다"}
+    return {"message": "설정이 저장되었습니다", "selected_model_provider": "gpt", "selected_ollama_model": None}
 
 # backend.py에 추가할 코드들
 

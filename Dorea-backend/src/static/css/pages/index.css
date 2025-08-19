@@ -1987,12 +1987,12 @@ body.resizing .resize-handle {
     transition: width 0.3s ease;
 }
 
-/* 알림 - chat-container 위치 기준으로 수정 */
+/* 알림 - 전역 위치 (모든 페이지에서 보임) */
 .notification {
-    position: absolute;
-    top: 10px;
+    position: fixed;
+    top: 80px;
     right: 20px;
-    z-index: 1000;
+    z-index: 9999;
     padding: 12px 16px; /* 패딩 줄임 */
     border-radius: 8px;
     color: white;

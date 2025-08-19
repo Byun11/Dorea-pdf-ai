@@ -56,6 +56,11 @@ function initializeModules() {
     OllamaManager.init();
     ShortcutManager.init();
     
+    // Chat 모듈 추가 초기화 (RAG 모드 등)
+    if (window.initializeChat) {
+        window.initializeChat();
+    }
+    
     // 폴더 트리 매니저 초기화 (기존 파일 매니저 이후)
     if (window.folderTreeManager) {
         window.folderTreeManager.init();

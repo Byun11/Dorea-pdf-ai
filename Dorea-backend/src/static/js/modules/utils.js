@@ -39,6 +39,8 @@ export async function fetchApi(endpoint, options = {}) {
 
 // 알림 표시 함수
 export function showNotification(message, type = 'info') {
+    console.log('showNotification 호출됨:', message, type); // 디버깅
+    
     const existingNotifications = document.querySelectorAll('.notification');
     existingNotifications.forEach(notif => notif.remove());
 
@@ -59,13 +61,11 @@ export function showNotification(message, type = 'info') {
         </div>
     `;
     
-    // chat-container 내부에 알림 표시
-    const chatContainer = document.getElementById('chatContainer');
-    if (chatContainer) {
-        chatContainer.appendChild(notification);
-    } else {
-        document.body.appendChild(notification);
-    }
+    // body에 추가해서 항상 보이도록
+    document.body.appendChild(notification);
+    console.log('body에 알림 추가됨'); // 디버깅
+    
+    console.log('알림 스타일 적용 후:', notification.style.cssText); // 디버깅
 
     setTimeout(() => {
         notification.style.opacity = '0';

@@ -31,7 +31,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    api_key = Column(String(255), unique=True, nullable=True)  # OpenAI API 키 (선택사항)
+    api_key = Column(String(255), nullable=True)  # OpenAI API 키 (선택사항) - 여러 사용자가 같은 키 사용 가능
     created_at = Column(DateTime, default=func.now())
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
     

@@ -12,6 +12,7 @@
 @import url('./components/forms.css');
 @import url('./components/folder-tree.css');
 @import url('./components/navigation.css');
+@import url('./components/settings.css');
 
 /* Page Styles */
 @import url('./pages/index.css');
