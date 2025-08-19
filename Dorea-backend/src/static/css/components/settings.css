@@ -265,13 +265,93 @@
     text-align: center;
 }
 
-/* 컨텍스트 소스 표시 */
-.context-sources {
-    margin-top: var(--space-4);
-    padding: var(--space-3);
-    background: var(--bg-secondary);
+/* 미니멀한 출처 버튼 */
+.sources-button-container {
+    position: relative;
+    margin-top: var(--space-3);
+    text-align: right;
+}
+
+.sources-button {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    color: var(--primary);
+    font-size: var(--font-xs);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    transition: all 0.2s var(--ease);
+    font-weight: 500;
+}
+
+.sources-button:hover {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.5);
+    transform: translateY(-1px);
+}
+
+.sources-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: var(--space-1);
+    background: white;
+    border: 1px solid var(--border-light);
     border-radius: var(--radius-md);
-    border-left: 4px solid var(--primary);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    min-width: 300px;
+    max-width: 400px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.source-item {
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border-light);
+    cursor: pointer;
+    transition: background-color 0.2s var(--ease);
+}
+
+.source-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.source-item:last-child {
+    border-bottom: none;
+}
+
+.source-info {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-1);
+    font-size: var(--font-xs);
+    font-weight: 500;
+}
+
+.source-icon {
+    flex-shrink: 0;
+}
+
+.source-title {
+    flex: 1;
+    color: var(--text-primary);
+}
+
+.source-similarity {
+    color: var(--text-tertiary);
+    font-size: var(--font-xs);
+}
+
+.source-preview {
+    font-size: var(--font-xs);
+    color: var(--text-secondary);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .context-sources-header {
