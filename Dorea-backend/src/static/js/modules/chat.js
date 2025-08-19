@@ -4,48 +4,73 @@
 
 import { fetchApi, showNotification, getCurrentTime } from './utils.js';
 
-// 컨텍스트 소스 정보를 HTML로 생성
-function createContextSourcesHTML(similarDocs) {
+// 미니멀한 출처 버튼 생성
+function createSourcesButton(similarDocs) {
     if (!similarDocs || similarDocs.length === 0) return '';
     
-    const sourcesHTML = similarDocs.map((doc, index) => {
-        const pageNum = doc.page_number || doc.page || '?';
-        const docType = doc.type || 'Text';
-        const similarity = doc.similarity ? (doc.similarity * 100).toFixed(1) : '?';
-        const preview = doc.text ? doc.text.substring(0, 100) + '...' : '';
-        
-        const typeMap = {
-            'Text': { icon: '📝', name: '텍스트' },
-            'Picture': { icon: '🖼️', name: '이미지' },
-            'Figure': { icon: '📊', name: '도표' },
-            'Table': { icon: '📋', name: '표' },
-            'Title': { icon: '🏷️', name: '제목' },
-            'Caption': { icon: '💬', name: '캡션' }
-        };
-        
-        const typeInfo = typeMap[docType] || { icon: '📄', name: docType };
+    const sourcesData = similarDocs.map(doc => ({
+        pageNum: doc.metadata?.page_number || doc.page_number || doc.page || '?',
+        docType: doc.metadata?.segment_type || doc.type || 'Text',
+        similarity: doc.distance !== undefined ? ((1 - doc.distance) * 100).toFixed(1) : '?',
+        preview: doc.text ? doc.text.substring(0, 100) + '...' : '내용 없음'
+    }));
+    
+    // JSON 데이터를 버튼에 저장
+    const sourcesJson = JSON.stringify(sourcesData).replace(/"/g, '&quot;');
+    
+    return `
+        <div class="sources-button-container">
+            <button class="sources-button" onclick="toggleSources(this)" data-sources="${sourcesJson}">
+                📄 출처 ${similarDocs.length}개
+            </button>
+            <div class="sources-dropdown" style="display: none;"></div>
+        </div>
+    `;
+}
+
+// 출처 드롭다운 토글 함수
+function toggleSources(button) {
+    const dropdown = button.parentNode.querySelector('.sources-dropdown');
+    const isVisible = dropdown.style.display !== 'none';
+    
+    if (isVisible) {
+        dropdown.style.display = 'none';
+        return;
+    }
+    
+    // 소스 데이터 파싱
+    const sourcesData = JSON.parse(button.getAttribute('data-sources').replace(/&quot;/g, '"'));
+    
+    const typeMap = {
+        'text': { icon: '📝', name: '텍스트' },
+        'Text': { icon: '📝', name: '텍스트' },
+        'Picture': { icon: '🖼️', name: '이미지' },
+        'Figure': { icon: '📊', name: '도표' },
+        'Table': { icon: '📋', name: '표' },
+        'Title': { icon: '🏷️', name: '제목' },
+        'Caption': { icon: '💬', name: '캡션' },
+        'Page header': { icon: '🔝', name: '헤더' },
+        'Page footer': { icon: '🔻', name: '푸터' }
+    };
+    
+    const sourcesHTML = sourcesData.map(doc => {
+        const typeInfo = typeMap[doc.docType] || { icon: '📄', name: doc.docType || '텍스트' };
+        const onclickHandler = doc.pageNum !== '?' ? `jumpToPage(${doc.pageNum}); toggleSources(this.closest('.sources-button-container').querySelector('.sources-button'))` : 'void(0)';
         
         return `
-            <div class="context-source-item" data-page="${pageNum}" onclick="jumpToPage(${pageNum})">
-                <div class="source-header">
+            <div class="source-item" onclick="${onclickHandler}">
+                <div class="source-info">
                     <span class="source-icon">${typeInfo.icon}</span>
-                    <span class="source-title">페이지 ${pageNum} - ${typeInfo.name}</span>
-                    <span class="source-similarity">${similarity}% 유사</span>
+                    <span class="source-title">페이지 ${doc.pageNum} - ${typeInfo.name}</span>
+                    <span class="source-similarity">${doc.similarity}%</span>
                 </div>
-                <div class="source-preview">${preview}</div>
+                <div class="source-preview">${doc.preview}</div>
             </div>
         `;
     }).join('');
     
-    return `
-        <div class="context-sources-header">
-            <div class="sources-title">📚 참고 자료</div>
-            <div class="sources-subtitle">클릭하여 원본 위치로 이동</div>
-        </div>
-        <div class="context-sources-list">
-            ${sourcesHTML}
-        </div>
-    `;
+    dropdown.innerHTML = sourcesHTML;
+    dropdown.style.display = 'block';
 }
 
 // 첨부된 세그먼트들의 HTML 표시 생성
@@ -513,6 +538,65 @@ export async function sendMessage(customMessage = null) {
     await processMessage(message, selectedSegments);
 }
 
+// RAG 벡터 검색 수행
+async function performVectorSearch(query, fileId) {
+    console.log('🔍 [DEBUG] RAG 벡터 검색 시작:', query);
+    console.log('🔍 [DEBUG] 현재 세션 정보:', {
+        fileId: currentChatSession?.fileId,
+        sessionId: currentChatSession?.sessionId,
+        fileName: currentChatSession?.fileName
+    });
+    
+    // 임베딩 상태 확인
+    const embeddingResponse = await fetchApi(`/api/knowledge/embeddings/${fileId}`);
+    if (embeddingResponse.ok) {
+        const embeddingStatus = await embeddingResponse.json();
+        console.log('🔍 [DEBUG] 임베딩 상태:', embeddingStatus);
+        
+        if (embeddingStatus.status !== 'completed') {
+            throw new Error(`파일 임베딩이 완료되지 않았습니다. 상태: ${embeddingStatus.status}`);
+        }
+    } else {
+        throw new Error('임베딩 상태 확인 실패 - 임베딩이 생성되지 않았을 가능성');
+    }
+    
+    // 임베딩 설정 확인
+    const settingsResponse = await fetchApi('/api/knowledge/settings');
+    if (settingsResponse.ok) {
+        const settings = await settingsResponse.json();
+        console.log('🔍 [DEBUG] 임베딩 설정:', settings);
+        
+        if (!settings.configured) {
+            throw new Error('임베딩 모델이 설정되지 않았습니다. 시스템 설정에서 임베딩 모델을 설정해주세요.');
+        }
+    } else {
+        throw new Error('임베딩 설정 확인 실패');
+    }
+    
+    // 벡터 검색 수행
+    const searchResponse = await fetchApi('/api/knowledge/search', {
+        method: 'POST',
+        body: JSON.stringify({
+            query: query,
+            top_k: 5,
+            file_id: fileId
+        })
+    });
+
+    if (!searchResponse.ok) {
+        const errorData = await searchResponse.json().catch(() => ({}));
+        throw new Error(`벡터 검색 실패: ${errorData.detail || searchResponse.statusText}`);
+    }
+
+    const searchData = await searchResponse.json();
+    const similarDocs = searchData.results || [];
+    
+    console.log('🔍 [DEBUG] 벡터 검색 결과:', similarDocs.length, '개 문서');
+    console.log('🔍 [DEBUG] 첫 번째 검색 결과 샘플:', similarDocs[0]);
+    
+    return similarDocs;
+}
+
 // RAG 메시지 처리
 async function processRagMessage(message) {
     addMessage(message, true);
@@ -530,24 +614,7 @@ async function processRagMessage(message) {
 
     try {
         // 1. 벡터 검색 수행
-        console.log('🔍 [DEBUG] RAG 벡터 검색 시작:', message);
-        
-        const searchResponse = await fetchApi('/api/knowledge/search', {
-            method: 'POST',
-            body: JSON.stringify({
-                query: message,
-                top_k: 5
-            })
-        });
-
-        if (!searchResponse.ok) {
-            throw new Error('벡터 검색 실패');
-        }
-
-        const searchData = await searchResponse.json();
-        const similarDocs = searchData.results || [];
-        
-        console.log('🔍 [DEBUG] 벡터 검색 결과:', similarDocs.length, '개 문서');
+        const similarDocs = await performVectorSearch(message, currentChatSession?.fileId);
 
         // 2. 검색 결과를 컨텍스트로 사용하여 GPT 요청
         const contextTexts = similarDocs.map(doc => doc.text).join('\n\n');
@@ -606,17 +673,10 @@ ${contextTexts}
         const messageEl = addMessage('', false, true);
         const contentEl = messageEl.querySelector('.message-content');
 
-        // 검색 결과 정보 및 컨텍스트 소스 추가
+        // 출처 버튼 준비 (답변 완료 후 추가할 예정)
+        let sourcesButtonHTML = '';
         if (similarDocs.length > 0) {
-            const searchInfo = `🔍 **검색된 관련 문서:** ${similarDocs.length}개\n\n`;
-            typeTextWithEffect(contentEl, searchInfo);
-            
-            // 컨텍스트 소스 정보 표시
-            const sourceInfo = createContextSourcesHTML(similarDocs);
-            const contextContainer = document.createElement('div');
-            contextContainer.className = 'context-sources';
-            contextContainer.innerHTML = sourceInfo;
-            messageEl.appendChild(contextContainer);
+            sourcesButtonHTML = createSourcesButton(similarDocs);
         }
 
         // 스트리밍 응답 처리
@@ -687,6 +747,11 @@ ${contextTexts}
         }
 
         messageEl.classList.remove('streaming');
+
+        // 답변 완료 후 출처 버튼 추가
+        if (sourcesButtonHTML && similarDocs.length > 0) {
+            contentEl.insertAdjacentHTML('beforeend', sourcesButtonHTML);
+        }
 
         // 메시지 저장
         await saveMessageToDB(message, true, null);
@@ -1657,4 +1722,5 @@ function initializeChat() {
 window.toggleRagMode = toggleRagMode;
 window.toggleSettings = toggleSettings;
 window.jumpToPage = jumpToPage;
+window.toggleSources = toggleSources;
 window.initializeChat = initializeChat;

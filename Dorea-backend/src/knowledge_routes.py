@@ -50,6 +50,7 @@ class CreateEmbeddingRequest(BaseModel):
 class SearchRequest(BaseModel):
     query: str
     top_k: Optional[int] = 5
+    file_id: Optional[str] = None  # 특정 파일로 검색 제한
 
 class SearchResult(BaseModel):
     text: str
@@ -352,10 +353,12 @@ async def search_documents(
                 detail="검색 쿼리가 비어있습니다"
             )
         
-        # 벡터 검색 수행
+        # 벡터 검색 수행 (선택적으로 특정 파일로 제한)
+        logger.info(f"🔍 벡터 검색 요청: user_id={user_id}, query='{request.query}', file_id={request.file_id}")
         results = await knowledge_manager.search_similar_documents(
-            user_id, request.query, request.top_k
+            user_id, request.query, request.top_k, request.file_id
         )
+        logger.info(f"🔍 벡터 검색 결과: {len(results)}개 문서 발견")
         
         # 결과 포맷팅
         search_results = []
@@ -382,17 +385,6 @@ async def search_documents(
             detail="서버 내부 오류가 발생했습니다"
         )
 
-# RAG 채팅 관련 엔드포인트 (향후 chat_routes.py에서 구현)
-@router.post("/chat")
-async def rag_chat(
-    request: dict,
-    current_user = Depends(get_current_user)
-):
-    """RAG 기반 채팅 (추후 구현)"""
-    raise HTTPException(
-        status_code=501,
-        detail="RAG 채팅 기능은 아직 구현되지 않았습니다"
-    )
 
 # 헬스체크 엔드포인트
 @router.get("/health")

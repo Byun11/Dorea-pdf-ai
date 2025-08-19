@@ -670,23 +670,49 @@ class KnowledgeManager:
             return False
     
     async def search_similar_documents(self, user_id: int, query: str, 
-                                     top_k: int = 5) -> List[Dict]:
-        """유사 문서 검색"""
+                                     top_k: int = 5, file_id: str = None) -> List[Dict]:
+        """유사 문서 검색 (선택적으로 특정 파일로 제한)"""
         try:
             settings = await self.get_user_settings(user_id)
-            if not settings: return []
+            if not settings: 
+                logger.error(f"❌ 사용자 {user_id}의 임베딩 설정이 없습니다. RAG 검색을 위해서는 먼저 임베딩 모델을 설정해주세요.")
+                return []
             
             query_embedding = await self._generate_embedding(
                 settings['provider'], settings['model_name'], query, user_id
             )
-            if not query_embedding: return []
+            if not query_embedding: 
+                logger.error(f"❌ 질문 임베딩 생성 실패: query='{query}', provider={settings['provider']}, model={settings['model_name']}")
+                return []
+            
+            logger.info(f"✅ 질문 임베딩 생성 성공: 차원={len(query_embedding)}, 첫 5개 값={query_embedding[:5]}")
             
             collection_name = f"user_{user_id}_documents"
             try:
                 collection = self.chroma_client.get_collection(collection_name)
             except ValueError: return []
             
-            results = collection.query(query_embeddings=[query_embedding], n_results=top_k)
+            # 특정 파일로 검색 제한
+            where_filter = {"file_id": file_id} if file_id else None
+            logger.info(f"🔍 ChromaDB 검색 조건: collection={collection_name}, filter={where_filter}")
+            
+            results = collection.query(
+                query_embeddings=[query_embedding], 
+                n_results=top_k,
+                where=where_filter
+            )
+            logger.info(f"🔍 ChromaDB 원시 결과: documents={len(results.get('documents', [[]])[0])}, ids={results.get('ids', [[]])}")
+            
+            # ChromaDB 컬렉션 전체 문서 수 확인 (디버깅용)
+            try:
+                all_items = collection.get(where=where_filter, limit=1, include=["metadatas"])
+                logger.info(f"🔍 필터링된 전체 문서 수: {len(all_items['ids'])} (file_id={file_id})")
+                if len(all_items['ids']) == 0:
+                    # 전체 컬렉션에서 몇 개나 있는지 확인
+                    total_items = collection.get(limit=1)
+                    logger.warning(f"⚠️ 해당 파일({file_id})의 임베딩이 ChromaDB에 없습니다. 전체 문서 수: {collection.count()}")
+            except Exception as debug_error:
+                logger.error(f"❌ ChromaDB 디버깅 중 오류: {debug_error}")
             
             return [{
                 'text': doc,
