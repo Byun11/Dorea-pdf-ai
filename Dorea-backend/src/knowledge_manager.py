@@ -33,7 +33,11 @@ class KnowledgeManager:
             settings=Settings(anonymized_telemetry=False)
         )
         # Ollama 비동기 클라이언트 초기화 (Docker 내부 통신용)
-        self.ollama_client = ollama.AsyncClient(host="http://ollama:11434")
+        self.ollama_base_url = "http://ollama:11434" # Store base URL
+        self.ollama_client = ollama.AsyncClient(host=self.ollama_base_url)
+        
+        # 배치 지원 캐시 (모델별로 한 번만 테스트)
+        self.batch_support_cache = {}
         
     async def get_user_settings(self, user_id: int) -> Optional[Dict]:
         """사용자 임베딩 설정 조회"""
@@ -270,9 +274,21 @@ class KnowledgeManager:
             logger.error(f"임베딩 상태 초기화 실패: {e}")
             raise
     
+    async def _check_cancelled_status(self, file_id: str) -> bool:
+        """임베딩 취소 상태 확인"""
+        try:
+            file_embedding = self.db.query(FileEmbedding).filter_by(file_id=file_id).first()
+            if file_embedding and file_embedding.status == 'cancelled':
+                logger.info(f"⏹️ 임베딩 취소 감지: {file_id}")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"취소 상태 확인 실패: {e}")
+            return False
+
     async def _process_embeddings_background(self, user_id: int, file_id: str, 
                                            segments: List[Dict], settings: Dict):
-        """백그라운드에서 임베딩 처리"""
+        """백그라운드에서 임베딩 처리 (취소 지원)"""
         try:
             logger.info(f"임베딩 처리 시작: {file_id}, {len(segments)}개 세그먼트")
             collection_name = f"user_{user_id}_documents"
@@ -281,31 +297,96 @@ class KnowledgeManager:
             
             provider = settings['provider']
             model_name = settings['model_name']
-            batch_size = 128 if provider == 'openai' else 32
+            batch_size = 128 if provider == 'openai' else 20  # Ollama 배치 크기 테스트
             
             for i in range(0, len(segments), batch_size):
+                # 취소 상태 체크
+                if await self._check_cancelled_status(file_id):
+                    logger.info(f"⏹️ 임베딩 처리 중단됨: {file_id}")
+                    return
                 batch_segments = segments[i:i + batch_size]
                 batch_texts = [s['text'] for s in batch_segments]
                 
                 try:
-                    batch_embeddings = await self._generate_batch_embeddings(
+                    result = await self._generate_batch_embeddings(
                         provider, model_name, batch_texts, user_id
                     )
-                    if not batch_embeddings or len(batch_embeddings) != len(batch_texts):
-                        logger.error(f"배치 {i}-{i+batch_size} 임베딩 결과 길이 불일치")
-                        continue
+                    
+                    # 청킹 결과 처리
+                    if provider == 'ollama' and isinstance(result, tuple) and len(result) == 3:
+                        # 청킹된 결과: (embeddings, chunk_mapping, chunks)
+                        batch_embeddings, chunk_mapping, chunk_texts = result
+                        
+                        # 청크별 ID와 메타데이터 생성
+                        chunk_ids = []
+                        chunk_metadatas = []
+                        chunk_index = 0
+                        
+                        for j, segment in enumerate(batch_segments):
+                            orig_chunks_count = chunk_mapping.count(j)
+                            for k in range(orig_chunks_count):
+                                chunk_ids.append(f"{file_id}_{i+j}_{k}")
+                                chunk_metadatas.append({
+                                    'file_id': file_id, 'user_id': str(user_id),
+                                    'chunk_index': i+j, 'sub_chunk': k,
+                                    'segment_type': segment.get('type', 'text'),
+                                    'page_number': int(segment.get('page_number', 1)),
+                                    'text_length': len(chunk_texts[chunk_index + k]),
+                                    'original_segment_length': len(segment['text'])
+                                })
+                            chunk_index += orig_chunks_count
+                        
+                        logger.info(f"🔍 청킹 임베딩 결과: {len(batch_embeddings)}개 청크 (원본 {len(batch_texts)}개)")
+                        
+                        # ChromaDB에 청크별로 저장
+                        try:
+                            collection.add(embeddings=batch_embeddings, documents=chunk_texts, ids=chunk_ids, metadatas=chunk_metadatas)
+                            await self._update_embedding_progress(file_id, i + len(batch_segments))
+                            logger.info(f"배치 {i+1}-{i+len(batch_segments)}/{len(segments)} 청킹 임베딩 완료: {file_id}")
+                        except Exception as chroma_error:
+                            logger.error(f"ChromaDB 저장 실패: {chroma_error}")
+                            if "dimension" in str(chroma_error).lower():
+                                logger.warning(f"임베딩 차원 불일치로 컬렉션 재생성: {collection_name}")
+                                self.chroma_client.delete_collection(collection_name)
+                                collection = self._get_or_create_collection(collection_name)
+                                collection.add(embeddings=batch_embeddings, documents=chunk_texts, ids=chunk_ids, metadatas=chunk_metadatas)
+                            else:
+                                raise chroma_error
+                            await self._update_embedding_progress(file_id, i + len(batch_segments))
+                            logger.info(f"배치 {i+1}-{i+len(batch_segments)}/{len(segments)} 청킹 임베딩 완료 (컬렉션 재생성): {file_id}")
+                            
+                    else:
+                        # 일반 배치 결과 처리
+                        batch_embeddings = result
+                        logger.info(f"🔍 배치 임베딩 결과: {len(batch_embeddings) if batch_embeddings else 'None'}, 예상: {len(batch_texts)}")
+                        
+                        if not batch_embeddings or len(batch_embeddings) != len(batch_texts):
+                            logger.error(f"❌ 배치 {i}-{i+batch_size} 임베딩 결과 길이 불일치")
+                            continue
 
-                    chunk_ids = [f"{file_id}_{i+j}" for j in range(len(batch_segments))]
-                    metadatas = [{
-                        'file_id': file_id, 'user_id': str(user_id),
-                        'chunk_index': i+j, 'segment_type': s.get('type', 'text'),
-                        'page_number': int(s.get('page_number', 1)),
-                        'text_length': len(s['text'])
-                    } for j, s in enumerate(batch_segments)]
+                        chunk_ids = [f"{file_id}_{i+j}" for j in range(len(batch_segments))]
+                        metadatas = [{
+                            'file_id': file_id, 'user_id': str(user_id),
+                            'chunk_index': i+j, 'segment_type': s.get('type', 'text'),
+                            'page_number': int(s.get('page_number', 1)),
+                            'text_length': len(s['text'])
+                        } for j, s in enumerate(batch_segments)]
 
-                    collection.add(embeddings=batch_embeddings, documents=batch_texts, ids=chunk_ids, metadatas=metadatas)
-                    await self._update_embedding_progress(file_id, i + len(batch_segments))
-                    logger.info(f"배치 {i+1}-{i+len(batch_segments)}/{len(segments)} 임베딩 완료: {file_id}")
+                        try:
+                            collection.add(embeddings=batch_embeddings, documents=batch_texts, ids=chunk_ids, metadatas=metadatas)
+                            await self._update_embedding_progress(file_id, i + len(batch_segments))
+                            logger.info(f"배치 {i+1}-{i+len(batch_segments)}/{len(segments)} 임베딩 완료: {file_id}")
+                        except Exception as chroma_error:
+                            logger.error(f"ChromaDB 저장 실패: {chroma_error}")
+                            if "dimension" in str(chroma_error).lower():
+                                logger.warning(f"임베딩 차원 불일치로 컬렉션 재생성: {collection_name}")
+                                self.chroma_client.delete_collection(collection_name)
+                                collection = self._get_or_create_collection(collection_name)
+                                collection.add(embeddings=batch_embeddings, documents=batch_texts, ids=chunk_ids, metadatas=metadatas)
+                            else:
+                                raise chroma_error
+                            await self._update_embedding_progress(file_id, i + len(batch_segments))
+                            logger.info(f"배치 {i+1}-{i+len(batch_segments)}/{len(segments)} 임베딩 완료 (컬렉션 재생성): {file_id}")
 
                 except Exception as e:
                     logger.error(f"배치 {i}-{i+batch_size} 임베딩 실패: {e}")
@@ -326,6 +407,10 @@ class KnowledgeManager:
                 file_embedding.completed_chunks = completed_chunks
                 file_embedding.updated_at = datetime.utcnow()
                 self.db.commit()
+                
+                # 진행률 계산 및 로그
+                progress = round((completed_chunks / file_embedding.total_chunks * 100), 1)
+                logger.info(f"📊 DB 진행률 업데이트: {file_id} → {completed_chunks}/{file_embedding.total_chunks} ({progress}%)")
         except Exception as e:
             self.db.rollback()
             logger.error(f"진행률 업데이트 실패: {e}")
@@ -385,18 +470,151 @@ class KnowledgeManager:
             logger.error(f"OpenAI 배치 임베딩 생성 중 오류: {e}")
             return None
 
-    async def _generate_ollama_batch_embeddings(self, model_name: str, texts: List[str]) -> Optional[List[List[float]]]:
-        """Ollama로 배치 임베딩 생성 (ollama 라이브러리 사용)"""
+    async def _get_ollama_model_context_length(self, model_name: str) -> int:
+        """Ollama 모델의 최대 컨텍스트 길이 확인"""
         try:
-            # ollama 라이브러리는 prompt 인자에 리스트를 전달하여 배치 처리를 지원
-            response = await self.ollama_client.embeddings(
-                model=model_name,
-                prompt=texts
-            )
-            # 결과는 각 텍스트에 대한 임베딩 객체의 리스트
-            return [res["embedding"] for res in response]
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.post(
+                    "http://ollama:11434/api/show",
+                    json={"name": model_name}
+                )
+                if response.status_code == 200:
+                    model_info = response.json()
+                    # model_info에서 context_length 찾기
+                    if "model_info" in model_info:
+                        context_length = model_info["model_info"].get("bert.context_length")
+                        if context_length:
+                            return int(context_length)
+                    return 512  # 기본값
+                return 512
         except Exception as e:
-            logger.error(f"Ollama 배치 임베딩 생성 중 오류: {e}")
+            logger.warning(f"모델 컨텍스트 길이 확인 실패, 기본값 512 사용: {e}")
+            return 512
+
+    def _chunk_text(self, text: str, max_chars: int) -> List[str]:
+        """긴 텍스트를 청킹 처리 (겹침 포함)"""
+        if len(text) <= max_chars:
+            return [text]
+        
+        chunks = []
+        overlap = int(max_chars * 0.1)  # 10% 겹침
+        start = 0
+        
+        while start < len(text):
+            end = start + max_chars
+            if end >= len(text):
+                chunks.append(text[start:])
+                break
+            
+            # 단어 경계에서 자르기 시도
+            chunk = text[start:end]
+            last_space = chunk.rfind(' ')
+            if last_space > max_chars * 0.8:  # 80% 이상 위치에서 공백 발견
+                end = start + last_space
+            
+            chunks.append(text[start:end])
+            start = end - overlap
+        
+        return chunks
+
+    async def _generate_ollama_batch_embeddings(self, model_name: str, texts: List[str]) -> Optional[List[List[float]]]:
+        """Ollama 임베딩 생성 (긴 텍스트 청킹 포함)"""
+        try:
+            # 모델의 실제 토큰 제한 확인
+            max_tokens = await self._get_ollama_model_context_length(model_name)
+            max_chars = int(max_tokens * 0.8)
+            
+            # 텍스트 청킹 처리
+            all_chunks = []
+            chunk_mapping = []  # 원본 텍스트 인덱스 매핑
+            
+            for i, text in enumerate(texts):
+                chunks = self._chunk_text(text, max_chars)
+                all_chunks.extend(chunks)
+                chunk_mapping.extend([i] * len(chunks))
+                
+                if len(chunks) > 1:
+                    logger.info(f"📝 텍스트 {i+1} 청킹: {len(text)}자 → {len(chunks)}개 청크")
+            
+            logger.info(f"🔄 Ollama 배치 처리: {len(texts)}개 텍스트 → {len(all_chunks)}개 청크")
+            
+            # 청크들을 배치 처리
+            chunk_embeddings = []
+            batch_size = 20  # 청크 배치 크기
+            
+            for i in range(0, len(all_chunks), batch_size):
+                batch_chunks = all_chunks[i:i + batch_size]
+                
+                try:
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(
+                            f"{self.ollama_base_url}/api/embed",
+                            json={
+                                "model": model_name,
+                                "input": batch_chunks
+                            },
+                            timeout=60.0
+                        )
+                        response.raise_for_status()
+                        response_data = response.json()
+                    
+                    embeddings = response_data.get("embeddings", [])
+                    if embeddings and len(embeddings) == len(batch_chunks):
+                        chunk_embeddings.extend(embeddings)
+                        logger.info(f"✅ 청크 배치 처리 성공: {len(embeddings)}개")
+                    else:
+                        logger.warning(f"❌ 청크 배치 응답 길이 불일치")
+                        return None
+                        
+                except Exception as batch_error:
+                    logger.warning(f"❌ 청크 배치 처리 실패: {batch_error}")
+                    return None
+            
+            # 각 청크를 독립적인 임베딩으로 반환 (의미 보존)
+            logger.info(f"✅ 청킹 처리 완료: {len(chunk_embeddings)}개 청크 임베딩 (원본 {len(texts)}개 텍스트)")
+            return chunk_embeddings, chunk_mapping, all_chunks  # 청크 정보도 함께 반환
+
+        except Exception as e:
+            logger.error(f"Ollama 임베딩 생성 실패: {e}")
+            return await self._generate_ollama_individual_embeddings(model_name, texts)
+    
+    async def _generate_ollama_individual_embeddings(self, model_name: str, texts: List[str]) -> Optional[List[List[float]]]:
+        """Ollama 개별 처리 (폴백용)"""
+        try:
+            max_tokens = await self._get_ollama_model_context_length(model_name)
+            max_chars = int(max_tokens * 0.8)
+            
+            embeddings = []
+            total_texts = len(texts)
+            
+            for i, text in enumerate(texts):
+                truncated_text = text[:max_chars] if len(text) > max_chars else text
+                
+                try:
+                    response = await self.ollama_client.embeddings(
+                        model=model_name,
+                        prompt=truncated_text
+                    )
+                    embeddings.append(response["embedding"])
+                    logger.info(f"Ollama 개별 임베딩 생성됨 (첫 5개 값): {response['embedding'][:5]}...")
+                    
+                    # 진행률 로그
+                    if (i + 1) % 5 == 0 or i == total_texts - 1:
+                        progress = round((i + 1) / total_texts * 100, 1)
+                        logger.info(f"Ollama 개별 임베딩 진행: {i + 1}/{total_texts} ({progress}%)")
+                    
+                except Exception as single_error:
+                    logger.error(f"개별 임베딩 {i+1}/{total_texts} 실패: {single_error}")
+                    # 실패한 경우 빈 임베딩으로 대체하지 않고 전체 실패 처리
+                    return None
+                
+                # 개별 처리 시 지연 (서버 부하 방지)
+                await asyncio.sleep(0.1)
+                    
+            return embeddings
+        except Exception as e:
+            logger.error(f"Ollama 개별 임베딩 생성 중 오류: {e}")
             return None
 
     async def cancel_file_embedding(self, user_id: int, file_id: str) -> bool:
