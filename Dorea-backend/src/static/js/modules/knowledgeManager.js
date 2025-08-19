@@ -449,11 +449,11 @@ class KnowledgeManager {
 
     // 트리 HTML 생성
     generateTreeHTML(data, level = 0) {
-        console.log(`generateTreeHTML called with data:`, data, `level: ${level}`); // 디버깅용
+        // console.log(`generateTreeHTML called with data:`, data, `level: ${level}`); // 디버깅용
         
         // data가 배열인 경우 (루트 레벨)
         if (Array.isArray(data)) {
-            console.log(`Processing array with ${data.length} items`); // 디버깅용
+            // console.log(`Processing array with ${data.length} items`); // 디버깅용
             let html = '';
             for (const item of data) {
                 html += this.generateTreeHTML(item, level);
@@ -471,7 +471,7 @@ class KnowledgeManager {
         
         // 폴더인 경우
         if (data.type === 'folder') {
-            console.log(`Processing folder: ${data.name}`); // 디버깅용
+            // console.log(`Processing folder: ${data.name}`); // 디버깅용
             const folderStats = this.getFolderEmbeddingStats(data);
             html += `
                 <div class="tree-item">
@@ -513,7 +513,7 @@ class KnowledgeManager {
         }
         // 파일인 경우 (type이 없어도 파일로 처리)
         else {
-            console.log('Processing as file:', data); // 디버깅용
+            // console.log('Processing as file:', data); // 디버깅용
             const embeddingData = this.embeddingData.get(data.id);
             const status = embeddingData?.status || 'none';
             const displayName = data.filename || data.name || '이름 없는 파일';
@@ -1537,9 +1537,14 @@ class KnowledgeManager {
                 return;
             }
             
-            console.log(`🔄 진행률 체크 중... (${checkCount + 1}/${maxChecks}): ${fileId}`);
+            // console.log(`🔄 진행률 체크 중... (${checkCount + 1}/${maxChecks}): ${fileId}`);
             await this.refreshFileStatus(fileId);
             const embeddingData = this.embeddingData.get(fileId);
+            
+            // 진행률 업데이트 로그
+            if (embeddingData && embeddingData.status === 'processing') {
+                console.log(`📊 UI 진행률: ${embeddingData.completed_chunks}/${embeddingData.total_chunks} (${embeddingData.progress || 0}%)`);
+            }
             
             if (embeddingData && ['completed', 'failed', 'cancelled'].includes(embeddingData.status)) {
                 console.log(`✅ 임베딩 완료/종료: ${fileId} (${embeddingData.status})`);
