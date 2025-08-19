@@ -313,7 +313,7 @@ async def main_app():
 async def verify_api_key_endpoint(request: ApiKeyRequest):
     """API 키 유효성 검사"""
     try:
-        is_valid = await verify_api_key(request.api_key)
+        is_valid = verify_api_key(request.api_key)
         if is_valid:
             return {"message": "API 키가 유효합니다", "valid": True}
         else:
@@ -389,7 +389,7 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 async def update_user_api_key(request: UserApiKeyUpdateRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """사용자 API 키 업데이트"""
     # API 키 유효성 검사
-    is_valid = await verify_api_key(request.api_key)
+    is_valid = verify_api_key(request.api_key)
     if not is_valid:
         raise HTTPException(status_code=400, detail="유효하지 않은 API 키입니다")
     
