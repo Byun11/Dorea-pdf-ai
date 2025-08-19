@@ -361,12 +361,12 @@
                                 >
                                     <option value="" disabled>모델을 불러오는 중...</option>
                                 </select>
-                                <button class="test-model-btn" data-action="test-ollama-model" title="선택한 모델이 설치되어 있고 임베딩 생성이 가능한지 테스트합니다">
-                                    🔍 테스트
+                                <button class="test-model-btn" data-action="test-ollama-model" title="선택한 모델이 임베딩을 지원하는지 테스트하고 설정을 저장합니다">
+                                    🔍 테스트 및 저장
                                 </button>
                             </div>
                             <div class="setting-help">
-                                임베딩 전용 모델을 선택하세요.
+                                임베딩 전용 모델을 선택한 후 반드시 테스트를 완료해주세요.
                             </div>
                         </div>
                         
@@ -374,20 +374,21 @@
                         <div class="flex flex-col w-full p-3" style="border-top: 1px solid var(--border-primary); margin-top: var(--space-4); padding-top: var(--space-4);">
                             <!-- 고급 옵션 토글 버튼 -->
                             <div class="mb-4">
-                                <button id="advancedOptionsToggle" class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-all duration-200" onclick="toggleAdvancedOptions()">
+                                <button id="embeddingAdvancedOptionsToggle" class="w-full flex items-center justify-between p-3 text-sm font-medium text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-lg transition-all duration-200" onclick="window.knowledgeManager.toggleAdvancedOptions()"
+                                >
                                     <div class="flex items-center gap-2">
                                         <span>⚙️</span>
                                         <span>고급 옵션</span>
                                         <span class="text-xs text-gray-500">(모델 다운로드/삭제)</span>
                                     </div>
-                                    <svg id="advancedOptionsIcon" class="w-4 h-4 transform transition-transform duration-200 rotated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg id="embeddingAdvancedOptionsIcon" class="w-4 h-4 transform transition-transform duration-200 rotated" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                     </svg>
                                 </button>
                             </div>
 
                             <!-- 고급 옵션 영역 (기본 숨김) -->
-                            <div id="advancedOptionsSection" class="advanced-options-section expanded" style="display: block;">
+                            <div id="embeddingAdvancedOptionsSection" class="advanced-options-section expanded" style="display: block;">
                                 <!-- Ollama 인스턴스 선택 -->
                                 <div class="mb-4">
                                     <div class="mb-2 text-sm font-medium">Ollama 인스턴스</div>
@@ -408,9 +409,9 @@
                                         </button>
                                     </div>
                                     <div class="flex w-full gap-2">
-                                        <label for="pullModelInput1" class="sr-only">모델 태그 입력</label>
-                                        <input id="pullModelInput1" name="pullModelInput1" class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" placeholder="모델 태그 입력(예: mistral:7b)">
-                                        <button id="pullModelBtn1" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition" onclick="pullModel()">
+                                        <label for="embeddingPullModelInput" class="sr-only">모델 태그 입력</label>
+                                        <input id="embeddingPullModelInput" name="embeddingPullModelInput" class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" placeholder="모델 태그 입력(예: mistral:7b)">
+                                        <button id="embeddingPullModelBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition" onclick="window.knowledgeManager.pullModel()">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
                                                 <path d="M8.75 2.75a.75.75 0 0 0-1.5 0v5.69L5.03 6.22a.75.75 0 0 0-1.06 1.06l3.5 3.5a.75.75 0 0 0 1.06 0l3.5-3.5a.75.75 0 0 0-1.06-1.06L8.75 8.44V2.75Z"></path>
                                                 <path d="M3.5 9.75a.75.75 0 0 0-1.5 0v1.5A2.75 2.75 0 0 0 4.75 14h6.5A2.75 2.75 0 0 0 14 11.25v-1.5a.75.75 0 0 0-1.5 0v1.5c0 .69-.56 1.25-1.25 1.25h-6.5c-.69 0-1.25-.56-1.25-1.25v-1.5Z"></path>
@@ -421,15 +422,30 @@
                                         다운로드 가능한 모델명을 확인하려면, 
                                         <a class="text-blue-500 font-medium underline" href="https://ollama.com/library" target="_blank">여기를 클릭하세요.</a>
                                     </div>
-                                    <div id="pullModelStatus" class="mt-2 p-2 rounded text-sm" style="display: none;"></div>
+                                    <div id="embeddingPullModelStatus" class="mt-2 p-2 rounded text-sm" style="display: none;">
+                                        <div class="flex items-center justify-between">
+                                            <span>모델 다운로드 준비 중...</span>
+                                        </div>
+                                        <div class="mt-2">
+                                            <div class="bg-gray-200 rounded-full h-2">
+                                                <div id="embeddingDownloadProgress" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                            </div>
+                                            <div class="flex justify-between text-xs mt-1">
+                                                <span id="embeddingDownloadPercent">0%</span>
+                                                <span id="embeddingDownloadSize">0MB / 0MB</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
 
                                 <!-- 모델 삭제 -->
                                 <div class="mb-4">
                                     <div class="mb-2 text-sm font-medium">모델 삭제</div>
                                     <div class="flex w-full gap-2">
-                                        <select id="deleteModelSelect" class="flex-1 py-2 px-4 text-sm border border-gray-300 rounded-lg bg-gray-50"><option value="" disabled="">모델 선택</option><option value="gemma3:4b">gemma3:4b</option></select>
-                                        <button id="deleteModelBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition" onclick="deleteModel()">
+                                        <select id="embeddingDeleteModelSelect" class="flex-1 py-2 px-4 text-sm border border-gray-300 rounded-lg bg-gray-50">
+                                            <option value="" disabled>모델을 불러오는 중...</option>
+                                        </select>
+                                        <button id="embeddingDeleteModelBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition" onclick="window.knowledgeManager.deleteModel()">
                                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
                                                 <path fill-rule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clip-rule="evenodd"></path>
                                             </svg>
@@ -452,9 +468,6 @@
                                     <option value="text-embedding-3-large">text-embedding-3-large (고성능)</option>
                                     <option value="text-embedding-ada-002">text-embedding-ada-002 (레거시)</option>
                                 </select>
-                                <button class="test-model-btn" data-action="test-openai-model" title="선택한 모델과 저장된 API 키로 임베딩 생성이 가능한지 테스트합니다">
-                                    🔍 테스트 및 저장
-                                </button>
                             </div>
                             <div class="setting-help">
                                 API 키는 메인 설정(우측 상단 톱니바퀴)에서 관리됩니다.
@@ -622,15 +635,13 @@
                                 </button>
                             </div>
                             <div class="flex w-full gap-2">
-                                <label for="pullModelInput2" class="sr-only">모델 태그 입력</label>
                                 <input 
-                                    id="pullModelInput2" 
-                                    name="pullModelInput2"
+                                    id="pullModelInput" 
                                     class="flex-1 rounded-lg py-2 px-4 text-sm bg-gray-50 border border-gray-300" 
                                     placeholder="모델 태그 입력(예: mistral:7b)"
                                 >
                                 <button 
-                                    id="pullModelBtn2"
+                                    id="pullModelBtn"
                                     class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition"
                                     onclick="pullModel()"
                                 >
