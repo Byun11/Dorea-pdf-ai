@@ -150,7 +150,7 @@ function renderFolderItem(folder, level) {
              data-type="folder" 
              data-id="${folder.id}"
              style="padding-left: ${level * 20}px">
-            <div class="tree-item-content" onclick="folderTreeManager.toggleFolder(${folder.id})">
+            <div class="tree-item-content" onclick="event.stopPropagation(); folderTreeManager.toggleFolder(${folder.id})">
                 <span class="expand-icon ${hasFiles ? 'has-children' : ''} ${isExpanded ? 'expanded' : ''}">
                     ${hasFiles ? (isExpanded ? '▼' : '▶') : ''}
                 </span>
@@ -218,7 +218,12 @@ function toggleFolder(folderId) {
         expandedFolders.add(folderId);
     }
     
-    selectedFolderId = folderId;
+    // 이미 선택된 폴더를 다시 클릭하면 선택 해제
+    if (selectedFolderId === folderId) {
+        selectedFolderId = null;
+    } else {
+        selectedFolderId = folderId;
+    }
     renderFolderTree();
 }
 
@@ -646,6 +651,19 @@ function getAllFolders(items, level = 0, result = []) {
 // 초기화
 function init() {
     loadFolderTree();
+    
+    // 문서 클릭 시 선택 해제 기능 추가
+    document.addEventListener('click', (event) => {
+        const folderTreeContainer = document.querySelector('.folder-tree-container');
+        const isClickInsideTree = folderTreeContainer && folderTreeContainer.contains(event.target);
+        
+        // 폴더 트리 외부 클릭 시 선택 해제
+        if (!isClickInsideTree && (selectedFolderId !== null || selectedFileId !== null)) {
+            selectedFolderId = null;
+            selectedFileId = null;
+            renderFolderTree();
+        }
+    });
 }
 
 // 외부 인터페이스
