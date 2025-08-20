@@ -300,7 +300,8 @@ window.fileManager = {
     deleteFile: FileManager.deleteFile,
     cancelFile: FileManager.cancelFile,
     retryFile: FileManager.retryFile,
-    getFileQueue: FileManager.getFileQueue
+    getFileQueue: FileManager.getFileQueue,
+    removeFromQueue: FileManager.removeFromQueue
 };
 
 // 세그먼트 관련 함수들 (일부는 직접 호출됨)
@@ -763,7 +764,8 @@ window.fileManager = {
     deleteFile: FileManager.deleteFile,
     cancelFile: FileManager.cancelFile,
     retryFile: FileManager.retryFile,
-    getFileQueue: FileManager.getFileQueue
+    getFileQueue: FileManager.getFileQueue,
+    removeFromQueue: FileManager.removeFromQueue
 };
 
 // 세그먼트 관련 함수들 (일부는 직접 호출됨)

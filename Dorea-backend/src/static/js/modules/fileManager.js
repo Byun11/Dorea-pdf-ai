@@ -581,6 +581,21 @@ export function getFileQueue() {
     return fileQueue;
 }
 
+// 큐에서 파일 강제 제거
+export function removeFromQueue(fileId) {
+    const beforeLength = fileQueue.length;
+    fileQueue = fileQueue.filter(f => f.id !== fileId);
+    const afterLength = fileQueue.length;
+    
+    if (beforeLength > afterLength) {
+        console.log(`🗑️ 파일 큐에서 제거됨: ${fileId} (${beforeLength} → ${afterLength})`);
+        return true;
+    } else {
+        console.log(`⚠️ 파일 큐에서 찾을 수 없음: ${fileId}`);
+        return false;
+    }
+}
+
 
 // 파일 재처리
 export async function retryFile(fileId) {

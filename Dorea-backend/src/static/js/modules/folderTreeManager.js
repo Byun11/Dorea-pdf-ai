@@ -173,6 +173,16 @@ function renderFolderItem(folder, level) {
     return folderContent + filesContent;
 }
 
+// 새로 업로드된 파일인지 확인 (클라이언트 큐에만 있는 파일)
+function isNewUploadFile(fileId) {
+    if (!window.fileManager || !window.fileManager.getFileQueue) return false;
+    const fileQueue = window.fileManager.getFileQueue();
+    const queueFile = fileQueue.find(f => f.id === fileId);
+    // 큐에 있고, 'file' 객체가 있으면 새로 업로드된 파일
+    return queueFile && queueFile.file;
+}
+
+
 // 파일 아이템 렌더링
 function renderFileItem(file, level) {
     const isSelected = selectedFileId === file.id;
@@ -204,6 +214,10 @@ function renderFileItem(file, level) {
                 ${file.status === 'completed' || file.status === 'error' || file.status === 'failed' || file.status === 'waiting' ? `
                     <button onclick="event.stopPropagation(); folderTreeManager.showFileContextMenu('${file.id}', event)" 
                             class="context-menu-btn" title="파일 옵션">⋮</button>
+                ` : ''}
+                ${(file.status === 'waiting' && isNewUploadFile(file.id)) ? `
+                    <button onclick="event.stopPropagation(); folderTreeManager.forceDeleteFile('${file.id}')" 
+                            class="context-menu-btn force-delete-btn" title="대기 중인 파일 삭제" style="color: #dc2626;">✖</button>
                 ` : ''}
             </div>
         </div>
@@ -561,6 +575,39 @@ async function cancelProcessing(fileId) {
 }
 
 // 파일 삭제
+// 대기 중인 파일 삭제
+async function forceDeleteFile(fileId) {
+    const file = findFileInTree(currentTree, fileId);
+    if (!file) {
+        showNotification('파일을 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    if (!confirm(`⚠️ 대기 중인 파일 "${file.filename}"을(를) 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.`)) {
+        return;
+    }
+    
+    try {
+        // 새로 업로드된 대기 파일은 클라이언트 큐에서만 제거
+        if (window.fileManager && window.fileManager.removeFromQueue) {
+            const removed = window.fileManager.removeFromQueue(fileId);
+            if (removed) {
+                console.log(`🗑️ 새 업로드 파일을 큐에서 제거: ${fileId}`);
+                showNotification('대기 중인 파일이 삭제되었습니다.', 'success');
+                // 트리 새로고침
+                await loadFolderTree();
+            } else {
+                showNotification('파일을 큐에서 찾을 수 없습니다.', 'error');
+            }
+        } else {
+            showNotification('파일 매니저를 찾을 수 없습니다.', 'error');
+        }
+    } catch (error) {
+        console.error('Delete file error:', error);
+        showNotification('파일 삭제 중 오류가 발생했습니다.', 'error');
+    }
+}
+
 async function deleteFile(fileId) {
     const file = findFileInTree(currentTree, fileId);
     if (!file) {
@@ -680,6 +727,7 @@ window.folderTreeManager = {
     reprocessFile,
     retryFile,
     deleteFile,
+    forceDeleteFile,
     cancelProcessing,
     showFolderContextMenu,
     showFileContextMenu,
