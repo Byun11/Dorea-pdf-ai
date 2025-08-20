@@ -1266,6 +1266,21 @@ export function nextPage() {
     }
 }
 
+// 특정 페이지로 이동하는 함수
+export function goToPage(pageNum) {
+    if (pdfDoc && pageNum >= 1 && pageNum <= pdfDoc.numPages) {
+        currentPage = pageNum;
+        if (viewMode === 'continuous') {
+            scrollToPage(currentPage);
+            updatePageControls();
+        } else {
+            rerenderCurrentView();
+        }
+        return true;
+    }
+    return false;
+}
+
 export function previousPage() {
     if (pdfDoc && currentPage > 1) {
         currentPage = currentPage - 1;
@@ -1828,6 +1843,7 @@ export function updateZoomControlsPosition() {
         zoomControls.style.width = 'auto';
     }
 }
+
 
 // 단일/듀얼 페이지 모드에 연속스크롤 방식 적용 (캔버스 크기 변경)
 async function applyScaleToCurrentView() {

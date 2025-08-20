@@ -66,7 +66,7 @@ class RagSourcesManager {
         return similarDocs.map(doc => ({
             pageNum: doc.metadata?.page_number || doc.page_number || doc.page || '?',
             docType: doc.metadata?.segment_type || doc.type || 'Text',
-            similarity: doc.distance !== undefined ? ((1 - doc.distance) * 100).toFixed(1) : '?',
+            similarity: doc.distance !== undefined ? Math.abs(((1 - doc.distance) * 100)).toFixed(1) : '?',
             preview: doc.text ? doc.text.substring(0, 80) + '...' : '내용 없음',
             segmentId: doc.metadata?.segment_id || doc.segment_id || null // 향후 백엔드 연동용
         }));

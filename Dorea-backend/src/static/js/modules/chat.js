@@ -1331,6 +1331,14 @@ function switchChatSession(fileId, fileName) {
     if (chatControls) chatControls.style.display = 'flex';
 
     loadChatSessions(fileId);
+    
+    // 파일 전환 시 RAG 모드 자동 비활성화 (임베딩 모델 충돌 방지)
+    if (ragModeEnabled) {
+        ragModeEnabled = false;
+        updateChatInputPlaceholder();
+        updateRagSwitchStyles();
+        console.log('🔄 파일 전환으로 RAG 모드 자동 비활성화됨');
+    }
 }
 
 // 채팅 세션 생성 또는 로드

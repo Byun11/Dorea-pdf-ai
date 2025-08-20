@@ -292,11 +292,10 @@ class KnowledgeManager:
         """백그라운드에서 임베딩 처리 (취소 지원)"""
         try:
             logger.info(f"임베딩 처리 시작: {file_id}, {len(segments)}개 세그먼트")
-            collection_name = f"user_{user_id}_documents"
+            provider = settings['provider']
+            collection_name = f"user_{user_id}_documents_{provider}"
             collection = self._get_or_create_collection(collection_name)
             await self._delete_file_chunks_from_chroma(collection, file_id)
-            
-            provider = settings['provider']
             model_name = settings['model_name']
             batch_size = 128 if provider == 'openai' else 20  # Ollama 배치 크기 테스트
             
@@ -647,7 +646,9 @@ class KnowledgeManager:
             file_embedding.error_message = '사용자에 의해 취소됨'
             self.db.commit()
             
-            collection_name = f"user_{user_id}_documents"
+            # 파일의 임베딩 프로바이더 정보 가져오기
+            embedding_provider = file_embedding.provider if file_embedding.provider else 'ollama'
+            collection_name = f"user_{user_id}_documents_{embedding_provider}"
             try:
                 collection = self.chroma_client.get_collection(collection_name)
                 await self._delete_file_chunks_from_chroma(collection, file_id)
@@ -763,7 +764,10 @@ class KnowledgeManager:
     async def delete_file_embedding(self, user_id: int, file_id: str) -> bool:
         """파일의 임베딩 삭제"""
         try:
-            collection_name = f"user_{user_id}_documents"
+            # 파일의 임베딩 프로바이더 정보 가져오기
+            file_embedding = self.db.query(FileEmbedding).filter_by(user_id=user_id, file_id=file_id).first()
+            embedding_provider = file_embedding.provider if file_embedding and file_embedding.provider else 'ollama'
+            collection_name = f"user_{user_id}_documents_{embedding_provider}"
             try:
                 collection = self.chroma_client.get_collection(collection_name)
                 await self._delete_file_chunks_from_chroma(collection, file_id)
@@ -831,7 +835,7 @@ class KnowledgeManager:
             
             logger.info(f"✅ 질문 임베딩 생성 성공: 차원={len(query_embedding)}")
             
-            collection_name = f"user_{user_id}_documents"
+            collection_name = f"user_{user_id}_documents_{embedding_provider}"
             try:
                 collection = self.chroma_client.get_collection(collection_name)
             except ValueError: return []
