@@ -136,7 +136,6 @@ class Folder(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # 사용자 FK
     name = Column(String(255), nullable=False)  # 폴더 이름
-    parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True, index=True)  # 부모 폴더 FK (NULL이면 루트)
     
     # 메타데이터
     description = Column(Text, nullable=True)  # 폴더 설명 (선택사항)
@@ -147,11 +146,10 @@ class Folder(Base):
     
     # 관계 설정
     user = relationship("User", back_populates="folders")
-    parent = relationship("Folder", remote_side=[id], backref="children")  # 자기 참조
     files = relationship("PDFFile", back_populates="folder")
     
     def __repr__(self):
-        return f"<Folder(id={self.id}, name='{self.name}', user_id={self.user_id}, parent_id={self.parent_id})>"
+        return f"<Folder(id={self.id}, name='{self.name}', user_id={self.user_id})>"
 
 # 유틸리티 함수들
 def hash_api_key(api_key: str) -> str:
@@ -171,11 +169,10 @@ def get_db():
     finally:
         db.close()
 
-def get_folder_tree(db: SessionLocal, user_id: int, parent_id: int = None):
-    """사용자의 폴더 트리 구조를 재귀적으로 가져옴"""
+def get_folder_tree(db: SessionLocal, user_id: int):
+    """사용자의 폴더 목록을 가져옴 (평면 구조)"""
     folders = db.query(Folder).filter(
-        Folder.user_id == user_id,
-        Folder.parent_id == parent_id
+        Folder.user_id == user_id
     ).order_by(Folder.name).all()
     
     result = []
@@ -183,11 +180,9 @@ def get_folder_tree(db: SessionLocal, user_id: int, parent_id: int = None):
         folder_data = {
             "id": folder.id,
             "name": folder.name,
-            "parent_id": folder.parent_id,
             "created_at": folder.created_at.isoformat(),
             "updated_at": folder.updated_at.isoformat(),
             "type": "folder",
-            "children": get_folder_tree(db, user_id, folder.id),
             "files": []
         }
         
