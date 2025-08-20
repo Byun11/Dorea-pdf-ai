@@ -840,10 +840,10 @@ async function performVectorSearch(query, fileId) {
         console.log('🔍 [DEBUG] 임베딩 상태:', embeddingStatus);
         
         if (embeddingStatus.status !== 'completed') {
-            throw new Error(`파일 임베딩이 완료되지 않았습니다. 상태: ${embeddingStatus.status}`);
+            throw new Error(`지식 베이스에서 임베딩을 먼저 생성해주세요. 현재 상태: ${embeddingStatus.status}`);
         }
     } else {
-        throw new Error('임베딩 상태 확인 실패 - 임베딩이 생성되지 않았을 가능성');
+        throw new Error('지식 베이스에서 임베딩을 먼저 생성해주세요.');
     }
     
     // 임베딩 설정 확인
@@ -1053,8 +1053,15 @@ ${contextTexts}
     } catch (error) {
         console.error('RAG 채팅 오류:', error);
         if (typingIndicator) typingIndicator.remove();
-        addMessage(`죄송합니다. RAG 검색 중 오류가 발생했습니다: ${error.message}`, false);
-        showNotification('RAG 검색에 실패했습니다.', 'error');
+        
+        // 임베딩 관련 오류인지 확인
+        if (error.message.includes('임베딩을 먼저 생성해주세요') || error.message.includes('Cannot read properties of null')) {
+            addMessage('지식 베이스에서 임베딩을 먼저 생성해주세요! 📚\n\n상단의 Knowledge 탭을 클릭하여 임베딩을 생성하면 AI가 문서 내용을 더 정확하게 분석할 수 있습니다.', false);
+            showNotification('지식 베이스에서 임베딩을 먼저 생성해주세요!', 'warning');
+        } else {
+            addMessage(`죄송합니다. 검색 중 오류가 발생했습니다: ${error.message}`, false);
+            showNotification('검색에 실패했습니다.', 'error');
+        }
     } finally {
         isTyping = false;
         const sendBtn = document.getElementById('sendBtn');
