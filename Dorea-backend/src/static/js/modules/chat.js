@@ -350,29 +350,38 @@ function typeTextWithEffect(element, newText) {
         const parsedContent = parseMarkdownWithMath(fullText);
         element.innerHTML = parsedContent;
         
-        // KaTeX 수식 렌더링 - 더 관대한 설정으로 복잡한 수식 지원
+        // KaTeX 수식 렌더링 - 디바운싱으로 성능 최적화
         if (typeof renderMathInElement !== 'undefined') {
-            try {
-                renderMathInElement(element, {
-                    delimiters: [
-                        {left: '$', right: '$', display: true},
-                        {left: ', right: ', display: false},
-                        {left: '\\\\[', right: '\\\\\]', display: true},
-                        {left: '\\(', right: '\\)', display: false}
-                    ],
-                    throwOnError: false,
-                    errorColor: 'var(--error, #ef4444)',
-                    strict: false,
-                    trust: true,  // 더 많은 LaTeX 명령어 허용
-                    macros: {     // 일반적인 수학 매크로 추가
-                        "\\hbar": "\\hslash",
-                        "\\mathbf": "\\boldsymbol",
-                        "\\partial": "\\partial"
-                    }
-                });
-            } catch (error) {
-                console.warn('KaTeX 렌더링 오류:', error);
+            // 기존 타임아웃 취소
+            if (element._katexTimeout) {
+                clearTimeout(element._katexTimeout);
             }
+            
+            // 50ms 디바운싱으로 불필요한 렌더링 방지
+            element._katexTimeout = setTimeout(() => {
+                try {
+                    renderMathInElement(element, {
+                        delimiters: [
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false},
+                            {left: '\\[', right: '\\]', display: true},
+                            {left: '\\(', right: '\\)', display: false}
+                        ],
+                        throwOnError: false,
+                        errorColor: 'var(--error, #ef4444)',
+                        strict: false,
+                        trust: true,  // 더 많은 LaTeX 명령어 허용
+                        macros: {     // 일반적인 수학 매크로 추가
+                            "\\hbar": "\\hslash",
+                            "\\mathbf": "\\boldsymbol"
+                        }
+                    });
+                } catch (error) {
+                    console.warn('KaTeX 렌더링 오류:', error);
+                } finally {
+                    element._katexTimeout = null;
+                }
+            }, 50);
         }
     } catch (error) {
         console.error('실시간 마크다운 파싱 실패:', error);
@@ -414,7 +423,7 @@ function parseMarkdownWithMath(text) {
         });
         
         // 인라인 수식 처리 ($...$) - 더 강력한 정규식으로 복잡한 수식 지원
-        protectedText = protectedText.replace(/\$([^$\\n]*(?:\\.[^$\\n]*)*)\\/g, (match, content) => {
+        protectedText = protectedText.replace(/\$([^$\n]*(?:\\.[^$\n]*)*)\$/g, (match, content) => {
             const placeholder = `__MATH_INLINE_${mathPlaceholders.length}__`;
             mathPlaceholders.push({type: 'inline', content: content.trim(), original: match});
             return placeholder;
@@ -466,7 +475,7 @@ function parseMarkdown(text) {
         .replace(/```([\s\S]*?)```/g, '<pre style="background: var(--bg-tertiary); color: var(--text-primary); padding: 10px; border-radius: 6px; overflow-x: auto; margin: 10px 0; border-left: 3px solid var(--primary); border: 1px solid var(--border-primary);"><code style="font-family: monospace; font-size: 0.9em; white-space: pre;">$1</code></pre>')
         
         // Links
-        .replace(/\<a href=\"([^\\]+)\" target=\"_blank\" style=\"color: var(--primary); text-decoration: underline;\">([^\\]+)<\/a>/g, '<a href="$1" target="_blank" style="color: var(--primary); text-decoration: underline;">$2</a>')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color: var(--primary); text-decoration: underline;">$1</a>')
         
         // Line breaks
         .replace(/\n/g, '<br>');
@@ -486,12 +495,12 @@ function parseMarkdown(text) {
             }
             const listItem = line.replace(/^[-*+]\s/, '');
             result.push(`<li style="margin: 3px 0;">${listItem}</li>`);
-        } else if (line.match(/^\d+\\.\s/)) {
+        } else if (line.match(/^\d+\.\s/)) {
             if (!inList) {
                 result.push('<ol style="margin: 8px 0; padding-left: 20px;">');
                 inList = true;
             }
-            const listItem = line.replace(/^\d+\\.\s/, '');
+            const listItem = line.replace(/^\d+\.\s/, '');
             result.push(`<li style="margin: 3px 0;">${listItem}</li>`);
         } else {
             if (inList) {
@@ -603,6 +612,36 @@ export async function sendMessage(customMessage = null) {
         return;
     }
 
+    // 🔥 캡처된 이미지가 있으면 이미지와 함께 전송
+    if (window.pendingCaptureImage) {
+        console.log('📷 캡처된 이미지와 함께 메시지 전송');
+        const captureImage = window.pendingCaptureImage;
+        
+        // 🧹 캡처 이미지 상태 완전 정리 (메모리 누수 방지)
+        window.pendingCaptureImage = null;
+        
+        // 타임아웃도 정리
+        if (window.captureTimeoutId) {
+            clearTimeout(window.captureTimeoutId);
+            window.captureTimeoutId = null;
+        }
+        
+        // UI 정리
+        const segmentIndicator = document.getElementById('selectedSegmentIndicator');
+        if (segmentIndicator) {
+            segmentIndicator.style.display = 'none';
+        }
+        
+        // 입력창 정리
+        if (input) input.value = '';
+        
+        console.log('🧹 캡처 이미지 메모리 정리 완료');
+        
+        // 이미지와 함께 전송
+        await sendMessageWithImage(message, captureImage);
+        return;
+    }
+
     // 선택된 세그먼트 가져오기
     const selectedSegments = getSelectedSegments();
     
@@ -627,9 +666,11 @@ export async function sendMessageWithImage(message, imageData) {
     console.log('  - 메시지:', message);
     console.log('  - 이미지 데이터 길이:', imageData ? imageData.length : 0);
     
-    // 메모리 부족 방지: 이미지 데이터 압축 체크
-    if (imageData && imageData.length > 100000) {
-        console.warn('⚠️ 큰 이미지 데이터 감지:', imageData.length, '바이트');
+    // 이미지 크기 검사 (기본적인 검증만)
+    if (imageData && imageData.length > 200000) {
+        console.warn('⚠️ 이미지가 너무 큽니다:', imageData.length, '바이트');
+        showNotification('이미지가 너무 큽니다. 더 작은 영역을 선택해주세요.', 'warning');
+        return;
     }
     
     // 이미지 세그먼트 생성
@@ -646,7 +687,7 @@ export async function sendMessageWithImage(message, imageData) {
 
 // 이미지 메시지 처리 전용 함수
 async function processImageMessage(message, imageSegments) {
-    addMessage(message, true);
+    addMessage(message, true, false, true);
     
     // 캡처된 이미지 표시
     const lastMessage = document.querySelector('.message:last-child .message-content');
@@ -689,10 +730,12 @@ async function processImageMessage(message, imageSegments) {
             conversation_history: conversationHistory
         };
 
-        console.log('🔍 [DEBUG] 이미지 메시지 백엔드로 전송할 데이터:');
-        console.log(`  - Segments: ${imageSegments.length}개 (이미지)`);
-        console.log(`  - Query: ${message}`);
-        console.log(`  - Conversation History: ${conversationHistory.length}개`);
+        console.log('🔍 [FRONTEND-DEBUG] API 요청 전송 직전. Body:', JSON.stringify(requestBody, (key, value) => {
+            if (key === 'content' && typeof value === 'string' && value.startsWith('data:image')) {
+                return value.substring(0, 100) + '...'; // 이미지 데이터 축약
+            }
+            return value;
+        }, 2));
 
         // 스트리밍 API 호출
         const response = await fetchApi('/gpt/multi-segment-stream', {
@@ -739,8 +782,8 @@ async function processImageMessage(message, imageSegments) {
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$', right: '$', display: true},
-                                                    {left: '', right: '', display: false},
+                                                    {left: '$$', right: '$$', display: true},
+                                                    {left: '$', right: '$', display: false},
                                                     {left: '\\\\[', right: '\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
@@ -965,8 +1008,8 @@ ${contextTexts}
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$', right: '$', display: true},
-                                                    {left: ', right: ', display: false},
+                                                    {left: '$$', right: '$$', display: true},
+                                                    {left: '$', right: '$', display: false},
                                                     {left: '\\\\[', right: '\\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
@@ -1170,8 +1213,8 @@ async function processMessage(message, selectedSegments = null) {
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$', right: '$', display: true},
-                                                    {left: ', right: ', display: false},
+                                                    {left: '$$', right: '$$', display: true},
+                                                    {left: '$', right: '$', display: false},
                                                     {left: '\\\\[', right: '\\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
@@ -1224,7 +1267,7 @@ async function processMessage(message, selectedSegments = null) {
 }
 
 // 메시지 추가
-function addMessage(content, isUser, isStreaming = false) {
+function addMessage(content, isUser, isStreaming = false, isImageMessage = false) {
     const chatContainer = document.getElementById('chatContainer');
     if (!chatContainer) return null;
 
@@ -1260,8 +1303,8 @@ function addMessage(content, isUser, isStreaming = false) {
                 try {
                     renderMathInElement(contentDiv, {
                         delimiters: [
-                            {left: '$', right: '$', display: true},
-                            {left: ', right: ', display: false},
+                            {left: '$$', right: '$$', display: true},
+                            {left: '$', right: '$', display: false},
                             {left: '\\\\[', right: '\\\\\]', display: true},
                             {left: '\\(', right: '\\)', display: false}
                         ],
@@ -1292,7 +1335,7 @@ function addMessage(content, isUser, isStreaming = false) {
     timeDiv.textContent = getCurrentTime();
 
     const selectedSegments = getSelectedSegments();
-    if (selectedSegments.length > 0 && isUser) {
+    if (selectedSegments.length > 0 && isUser && !isImageMessage) {
         const segmentsDiv = document.createElement('div');
         segmentsDiv.className = 'message-segments';
         segmentsDiv.innerHTML = createSegmentAttachmentsHTML(selectedSegments);
@@ -1822,8 +1865,8 @@ async function handleSegmentImagesAttachment(images, segments, message) {
                                         try {
                                             renderMathInElement(contentEl, {
                                                 delimiters: [
-                                                    {left: '$', right: '$', display: true},
-                                                    {left: ', right: ', display: false},
+                                                    {left: '$$', right: '$$', display: true},
+                                                    {left: '$', right: '$', display: false},
                                                     {left: '\\\\[', right: '\\\\\]', display: true},
                                                     {left: '\\(', right: '\\)', display: false}
                                                 ],
@@ -2043,6 +2086,7 @@ document.addEventListener('click', function(event) {
         });
     }
 });
+
 
 // 전역 함수 등록
 window.toggleRagMode = toggleRagMode;
