@@ -141,7 +141,10 @@ class DefensiveSegmentUpdater {
         segmentEl.dataset.segmentIndex = index;
         segmentEl.dataset.segmentId = segment.id || `page${pageNum}_${index}`;
 
-        segmentEl.style.left = (segment.left * viewport.scale) + 'px';
+        // Use transform[4] (offsetX) to fix horizontal alignment issues.
+        const offsetX = viewport.transform[4];
+
+        segmentEl.style.left = ((segment.left * viewport.scale) + offsetX) + 'px';
         segmentEl.style.top = (segment.top * viewport.scale) + 'px';
         segmentEl.style.width = (segment.width * viewport.scale) + 'px';
         segmentEl.style.height = (segment.height * viewport.scale) + 'px';
@@ -296,7 +299,10 @@ function createSegmentElement(segment, index, pageNum, viewport) {
     segmentEl.dataset.segmentIndex = index;
     segmentEl.dataset.segmentId = segment.id || `page${pageNum}_${index}`;
 
-    segmentEl.style.left = (segment.left * viewport.scale) + 'px';
+    // Use transform[4] (offsetX) to fix horizontal alignment issues.
+    const offsetX = viewport.transform[4];
+
+    segmentEl.style.left = ((segment.left * viewport.scale) + offsetX) + 'px';
     segmentEl.style.top = (segment.top * viewport.scale) + 'px';
     segmentEl.style.width = (segment.width * viewport.scale) + 'px';
     segmentEl.style.height = (segment.height * viewport.scale) + 'px';
