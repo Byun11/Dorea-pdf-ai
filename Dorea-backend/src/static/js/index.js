@@ -11,6 +11,7 @@ import * as Chat from './modules/chat.js';
 import * as OllamaManager from './modules/ollamaManager.js';
 import * as ShortcutManager from './modules/shortcutManager.js';
 import './modules/folderTreeManager.js'; // 글로벌 객체로 등록됨
+import './modules/ragSourcesManager.js'; // RAG 출처 매니저 (글로벌로 등록됨)
 import { knowledgeManager } from './modules/knowledgeManager.js';
 
 // 페이지 로드시 초기화

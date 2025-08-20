@@ -1045,6 +1045,7 @@ body.resizing .resize-handle {
 }
 
 .chat-message {
+    position: relative; /* RAG 패널 위치 기준점 */
     display: flex;
     align-items: flex-start;
     gap: var(--space-2) !important; /* 아이콘과 말풍선 간격 더 줄임 (0.75rem → 0.5rem) */

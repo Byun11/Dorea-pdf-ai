@@ -3,150 +3,23 @@
    ===================================================== */
 
 import { fetchApi, showNotification, getCurrentTime } from './utils.js';
+import RagSourcesManager from './ragSourcesManager.js';
 
-// 개선된 출처 버튼 생성
+// 새로운 RAG 출처 버튼 생성 (RagSourcesManager 사용)
 function createSourcesButton(similarDocs) {
-    if (!similarDocs || similarDocs.length === 0) return '';
-    
-    const sourcesData = similarDocs.map(doc => ({
-        pageNum: doc.metadata?.page_number || doc.page_number || doc.page || '?',
-        docType: doc.metadata?.segment_type || doc.type || 'Text',
-        similarity: doc.distance !== undefined ? ((1 - doc.distance) * 100).toFixed(1) : '?',
-        preview: doc.text ? doc.text.substring(0, 80) + '...' : '내용 없음'
-    }));
-    
-    // JSON 데이터를 버튼에 저장
-    const sourcesJson = JSON.stringify(sourcesData).replace(/"/g, '&quot;');
-    
-    return `
-        <div class="rag-sources-container">
-            <button class="rag-sources-toggle-btn" onclick="toggleSources(this)" data-sources="${sourcesJson}">
-                <span class="rag-sources-icon">🔗</span>
-                <span class="rag-sources-text">출처 ${similarDocs.length}개</span>
-                <span class="rag-sources-arrow">▼</span>
-            </button>
-            <div class="rag-sources-panel" style="display: none;"></div>
-        </div>
-    `;
+    return window.ragSourcesManager.createSourcesButton(similarDocs);
 }
 
-// 출처 패널 토글 함수
+// 출처 패널 토글 함수 (레거시 지원용)
 function toggleSources(button) {
-    const panel = button.parentNode.querySelector('.rag-sources-panel');
-    const arrow = button.querySelector('.rag-sources-arrow');
-    const isVisible = panel.classList.contains('show');
-    const chatContainer = document.getElementById('chatContainer');
-    
-    if (isVisible) {
-        // 패널 닫기
-        panel.classList.remove('show');
-        arrow.textContent = '▼';
-        button.classList.remove('active');
-        
-        // 저장된 스크롤 위치로 즉시 복원
-        if (chatContainer && button.dataset.savedScrollTop !== undefined) {
-            console.log('스크롤 복원:', button.dataset.savedScrollTop);
-            chatContainer.scrollTop = parseInt(button.dataset.savedScrollTop);
-            delete button.dataset.savedScrollTop;
-        }
-        return;
-    }
-    
-    // 다른 모든 출처 패널 닫기 및 스크롤 복원
-    document.querySelectorAll('.rag-sources-panel.show').forEach(otherPanel => {
-        const otherButton = otherPanel.parentNode.querySelector('.rag-sources-toggle-btn');
-        const otherArrow = otherButton.querySelector('.rag-sources-arrow');
-        otherPanel.classList.remove('show');
-        otherArrow.textContent = '▼';
-        otherButton.classList.remove('active');
-        
-        // 다른 패널들의 스크롤 위치도 복원
-        if (chatContainer && otherButton.dataset.savedScrollTop !== undefined) {
-            console.log('다른 패널 스크롤 복원:', otherButton.dataset.savedScrollTop);
-            chatContainer.scrollTop = parseInt(otherButton.dataset.savedScrollTop);
-            delete otherButton.dataset.savedScrollTop;
-        }
-    });
-    
-    // 현재 스크롤 위치 저장
-    if (chatContainer) {
-        button.dataset.savedScrollTop = chatContainer.scrollTop;
-        console.log('스크롤 위치 저장:', chatContainer.scrollTop);
-    }
-    
-    // 소스 데이터 파싱
-    const sourcesData = JSON.parse(button.getAttribute('data-sources').replace(/&quot;/g, '"'));
-    
-    const typeMap = {
-        'text': { icon: '📄', name: '텍스트', color: '#64748b' },
-        'Text': { icon: '📄', name: '텍스트', color: '#64748b' },
-        'Picture': { icon: '🖼️', name: '이미지', color: '#8b5cf6' },
-        'Figure': { icon: '📊', name: '도표', color: '#06b6d4' },
-        'Table': { icon: '📋', name: '표', color: '#10b981' },
-        'Title': { icon: '📌', name: '제목', color: '#f59e0b' },
-        'Caption': { icon: '💬', name: '캡션', color: '#6366f1' },
-        'Page header': { icon: '🔝', name: '머리글', color: '#84cc16' },
-        'Page footer': { icon: '🔻', name: '바닥글', color: '#ef4444' }
-    };
-    
-    const sourcesHTML = `
-        <div class="rag-sources-header">
-            <h4>📚 참조 출처</h4>
-            <span class="rag-sources-count">${sourcesData.length}개</span>
-        </div>
-        <div class="rag-sources-list">
-            ${sourcesData.map((doc, index) => {
-                const typeInfo = typeMap[doc.docType] || { icon: '📄', name: doc.docType || '텍스트', color: '#64748b' };
-                const onclickHandler = doc.pageNum !== '?' ? `jumpToPage(${doc.pageNum}); toggleSources(this.closest('.rag-sources-container').querySelector('.rag-sources-toggle-btn'))` : 'void(0)';
-                
-                return `
-                    <div class="rag-sources-card" onclick="${onclickHandler}" style="--type-color: ${typeInfo.color}">
-                        <div class="rag-sources-header">
-                            <div class="rag-sources-type">
-                                <span class="rag-sources-emoji">${typeInfo.icon}</span>
-                                <span class="rag-sources-type-name">${typeInfo.name}</span>
-                            </div>
-                            <div class="rag-sources-meta">
-                                <span class="rag-sources-page">${doc.pageNum}p</span>
-                                <span class="rag-sources-similarity">${Math.abs(parseFloat(doc.similarity)).toFixed(1)}%</span>
-                            </div>
-                        </div>
-                        <div class="rag-sources-content">${doc.preview}</div>
-                    </div>
-                `;
-            }).join('')}
-        </div>
-    `;
-    
-    panel.innerHTML = sourcesHTML;
-    panel.style.display = 'block';
-    panel.classList.add('show');
-    arrow.textContent = '▲';
-    button.classList.add('active');
-    
-    // 패널 위치 조정
-    adjustDropdownPosition(button, panel);
+    // 기존 onclick 호출을 새로운 매니저로 리다이렉트
+    console.warn('toggleSources는 레거시 함수입니다. 새로운 이벤트 기반 시스템을 사용하세요.');
 }
 
-// 드롭다운 표시 후 스크롤 조정하는 함수
+// 드롭다운 위치 조정 함수 (레거시 지원용)
 function adjustDropdownPosition(button, dropdown) {
-    const chatContainer = document.getElementById('chatContainer');
-    if (!chatContainer) return;
-    
-    // 드롭다운이 표시된 후 스크롤 조정
-    setTimeout(() => {
-        const containerRect = chatContainer.getBoundingClientRect();
-        const dropdownRect = dropdown.getBoundingClientRect();
-        
-        // 드롭다운이 컨테이너 밖으로 나간 경우 스크롤 조정
-        if (dropdownRect.bottom > containerRect.bottom) {
-            const scrollAmount = dropdownRect.bottom - containerRect.bottom + 20; // 20px 여유공간
-            chatContainer.scrollBy({
-                top: scrollAmount,
-                behavior: 'smooth'
-            });
-        }
-    }, 10);
+    // 새로운 시스템에서는 RagSourcesManager가 처리
+    console.warn('adjustDropdownPosition는 레거시 함수입니다.');
 }
 
 // 첨부된 세그먼트들의 HTML 표시 생성
@@ -1041,9 +914,16 @@ ${contextTexts}
 
         messageEl.classList.remove('streaming');
 
-        // 답변 완료 후 출처 버튼 추가
+        // 답변 완료 후 출처 버튼 추가 및 초기화
         if (sourcesButtonHTML && similarDocs.length > 0) {
             contentEl.insertAdjacentHTML('beforeend', sourcesButtonHTML);
+            
+            // 새로운 RAG 매니저로 초기화
+            const ragContainer = contentEl.querySelector('.rag-sources-container');
+            if (ragContainer) {
+                const sourcesData = window.ragSourcesManager.processSourcesData(similarDocs);
+                window.ragSourcesManager.initialize(ragContainer, sourcesData);
+            }
         }
 
         // 메시지 저장
@@ -2099,5 +1979,6 @@ document.addEventListener('click', function(event) {
 window.toggleRagMode = toggleRagMode;
 window.toggleSettings = toggleSettings;
 window.jumpToPage = jumpToPage;
+// 레거시 지원을 위해 유지 (실제로는 새로운 시스템 사용)
 window.toggleSources = toggleSources;
 window.initializeChat = initializeChat;
