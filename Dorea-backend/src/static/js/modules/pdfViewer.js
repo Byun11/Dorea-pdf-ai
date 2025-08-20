@@ -1281,6 +1281,220 @@ export function goToPage(pageNum) {
     return false;
 }
 
+// 현재 하이라이트된 요소들을 관리하는 변수
+let currentHighlights = [];
+
+// 세그먼트 기반 하이라이팅 함수
+export function highlightSegmentText(sourceData, pageNum = null) {
+    // 기존 하이라이트 제거
+    clearHighlights();
+    
+    if (!sourceData || !pageNum) {
+        return false;
+    }
+    
+    console.log('🔍 세그먼트 하이라이팅 시도:', {
+        pageNum: pageNum,
+        docType: sourceData.docType,
+        preview: sourceData.preview?.substring(0, 30)
+    });
+    
+    // 세그먼트 매니저에서 실제 세그먼트 데이터 가져오기
+    console.log('🔍 window.segmentManager 확인:', window.segmentManager);
+    console.log('🔍 segmentManager 함수들:', Object.keys(window.segmentManager || {}));
+    
+    // segmentManager에서 segments 배열 직접 접근 시도
+    if (window.segmentManager) {
+        try {
+            if (window.segmentManager.getSegments) {
+                const allSegments = window.segmentManager.getSegments();
+                console.log('🔍 PDF 뷰어의 전체 세그먼트 데이터:', allSegments);
+            } else {
+                // SegmentManager 모듈을 직접 import해서 segments 가져오기
+                console.log('🔍 getSegments 함수 없음, 다른 방법 시도...');
+            }
+        } catch (e) {
+            console.log('🔍 segmentManager 접근 오류:', e);
+        }
+    }
+    
+    // 다른 방법들 시도
+    {
+        // 직접 DOM에서 세그먼트 정보 찾아보기
+        console.log('🔍 DOM에서 세그먼트 정보 찾기 시도...');
+        const selectedIndicator = document.getElementById('selectedSegmentIndicator');
+        const segmentType = document.getElementById('segmentType');
+        const segmentPreview = document.getElementById('segmentPreview');
+        
+        console.log('🔍 현재 선택된 세그먼트 정보:', {
+            indicator: selectedIndicator?.style.display,
+            type: segmentType?.textContent,
+            preview: segmentPreview?.textContent?.substring(0, 50)
+        });
+        
+        // 글로벌 변수로 세그먼트 데이터 찾기
+        if (window.segments) {
+            console.log('🔍 window.segments 데이터:', window.segments);
+        }
+        
+        if (window.currentFileSegments) {
+            console.log('🔍 window.currentFileSegments 데이터:', window.currentFileSegments);
+        }
+    }
+    
+    // PDF 페이지에서 세그먼트 요소 찾기
+    const pageContainer = document.querySelector(`[data-page-number="${pageNum}"]`);
+    if (!pageContainer) {
+        console.log('🔍 페이지 컨테이너를 찾을 수 없음');
+        return false;
+    }
+    
+    // 세그먼트 요소들 찾기 (실제 .segment 클래스 요소들)
+    const segmentElements = pageContainer.querySelectorAll('.segment');
+    console.log(`🔍 페이지 ${pageNum}에서 ${segmentElements.length}개의 세그먼트 요소 발견`);
+    
+    let foundHighlight = false;
+    
+    // 세그먼트 타입이나 텍스트로 매칭
+    segmentElements.forEach((element, index) => {
+        const elementType = element.dataset.segmentType || element.dataset.type;
+        const elementText = element.textContent || element.dataset.text || '';
+        const elementClass = element.className;
+        
+        const segmentIndex = element.dataset.segmentIndex;
+        const segmentId = element.dataset.segmentId;
+        
+        console.log(`🔍 세그먼트 ${index + 1}:`, {
+            segmentId,
+            ragSegmentId: sourceData.segmentId,
+            match: sourceData.segmentId === segmentId
+        });
+        
+        // segmentId 직접 매칭 (예: "page10_8" vs "page10_8")
+        const segmentIdMatch = sourceData.segmentId && 
+                              segmentId && 
+                              sourceData.segmentId === segmentId;
+        
+        if (segmentIdMatch) {
+            // 원래 스타일 저장
+            const originalStyle = {
+                backgroundColor: element.style.backgroundColor || getComputedStyle(element).backgroundColor,
+                boxShadow: element.style.boxShadow || getComputedStyle(element).boxShadow,
+                borderRadius: element.style.borderRadius || getComputedStyle(element).borderRadius
+            };
+            
+            // 세그먼트 하이라이트 적용
+            element.style.backgroundColor = 'rgba(255, 255, 153, 0.6)';
+            element.style.boxShadow = '0 0 10px rgba(255, 255, 0, 0.8)';
+            element.style.borderRadius = '4px';
+            element.style.transition = 'all 0.3s ease';
+            
+            // 원래 스타일도 함께 저장
+            currentHighlights.push({element, originalStyle});
+            foundHighlight = true;
+            
+            const matchType = 'segmentId 매칭';
+            console.log('✅ 세그먼트 매칭 성공:', {
+                ragSegmentId: sourceData.segmentId,
+                segmentId: segmentId
+            });
+        }
+    });
+    
+    // 세그먼트를 찾지 못한 경우 페이지 전체에 간단한 플래시 효과
+    if (!foundHighlight) {
+        console.log('🔍 세그먼트를 찾을 수 없어 페이지 플래시 효과 적용');
+        
+        // 페이지 전체에 플래시 효과
+        const flashOverlay = document.createElement('div');
+        flashOverlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 153, 0.3);
+            pointer-events: none;
+            z-index: 1000;
+            border-radius: 4px;
+            animation: flashHighlight 1s ease-out;
+        `;
+        
+        // 플래시 애니메이션 CSS 추가
+        if (!document.getElementById('flashHighlightStyle')) {
+            const style = document.createElement('style');
+            style.id = 'flashHighlightStyle';
+            style.textContent = `
+                @keyframes flashHighlight {
+                    0% { opacity: 0; }
+                    50% { opacity: 1; }
+                    100% { opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        pageContainer.style.position = 'relative';
+        pageContainer.appendChild(flashOverlay);
+        
+        // 1초 후 플래시 제거
+        setTimeout(() => {
+            if (flashOverlay.parentNode) {
+                flashOverlay.parentNode.removeChild(flashOverlay);
+            }
+        }, 1000);
+        
+        foundHighlight = true; // 플래시 효과도 성공으로 간주
+    }
+    
+    // 찾은 하이라이트로 스크롤
+    if (currentHighlights.length > 0) {
+        const firstElement = currentHighlights[0].element || currentHighlights[0];
+        firstElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+        });
+        
+        // 3초 후 자동으로 하이라이트 제거
+        setTimeout(() => {
+            clearHighlights();
+        }, 3000);
+    }
+    
+    return foundHighlight;
+}
+
+// 텍스트 정규화 함수 (공백, 줄바꿈 등 제거)
+function normalizeText(text) {
+    return text.replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+// 하이라이트 제거 함수
+export function clearHighlights() {
+    currentHighlights.forEach(highlight => {
+        if (highlight.element && highlight.originalStyle) {
+            // 원래 스타일로 복원
+            const { element, originalStyle } = highlight;
+            element.style.backgroundColor = originalStyle.backgroundColor;
+            element.style.boxShadow = originalStyle.boxShadow;
+            element.style.borderRadius = originalStyle.borderRadius;
+        } else if (highlight.element) {
+            // 구 방식 fallback
+            highlight.element.style.backgroundColor = '';
+            highlight.element.style.padding = '';
+            highlight.element.style.borderRadius = '';
+            highlight.element.style.transition = '';
+        } else {
+            // 기존 방식 (element 직접)
+            highlight.style.backgroundColor = '';
+            highlight.style.padding = '';
+            highlight.style.borderRadius = '';
+            highlight.style.transition = '';
+        }
+    });
+    currentHighlights = [];
+}
+
 export function previousPage() {
     if (pdfDoc && currentPage > 1) {
         currentPage = currentPage - 1;
