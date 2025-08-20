@@ -816,6 +816,7 @@ function addPdfControls() {
             <div class="fit-controls" style="display: flex; align-items: center; gap: 8px;">
                 <button class="zoom-btn fit-btn" onclick="window.pdfViewer.fitToWidth()" title="너비 맞춤">↔</button>
                 <button class="zoom-btn fit-btn" onclick="window.pdfViewer.fitToHeight()" title="높이 맞춤">↕</button>
+                <button class="zoom-btn capture-btn" onclick="window.pdfViewer.captureCurrentView()" title="현재 화면 캡처">📷</button>
                 <div class="view-settings-dropdown" style="position: relative;">
                     <button class="zoom-btn settings-btn" id="settingsBtn" onclick="window.pdfViewer.toggleViewSettings()" title="뷰 설정">⚙️</button>
                     <div class="view-options-menu" id="viewOptionsMenu" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1002; min-width: 120px; margin-top: 4px;">
@@ -849,7 +850,7 @@ function addPdfControls() {
             zoomControls.style.right = '';
             zoomControls.style.width = '';
         } else {
-            // 데스크톱: PDF 컨테이너 기준으로 플로팅
+            // 데스크탑: PDF 컨테이너 기준으로 플로팅
             const floatingOffset = 12; // 플로팅 오프셋
             const leftMargin = 24; // 좌우 여백
             zoomControls.style.top = `${rect.top + floatingOffset}px`;
@@ -1304,6 +1305,351 @@ export async function captureSegmentAsImage(segment) {
     } catch (error) {
         console.error('세그먼트 캡처 오류:', error);
         return null;
+    }
+}
+
+// 현재 뷰포트 전체를 캡처하는 함수
+export async function captureCurrentView() {
+    if (!pdfDoc) {
+        console.warn('PDF가 로드되지 않았습니다.');
+        return null;
+    }
+
+    try {
+        // 캡처 모드 시작
+        startCaptureMode();
+        
+    } catch (error) {
+        console.error('캡처 모드 시작 오류:', error);
+        return null;
+    }
+}
+
+// 캡처 모드 시작 - 사용자가 영역을 선택할 수 있게 함
+export function startCaptureMode() {
+    const pdfContainer = document.getElementById('pdfContainer');
+    if (!pdfContainer) return;
+
+    // 기존 캡처 오버레이 제거
+    const existingOverlay = document.getElementById('captureOverlay');
+    if (existingOverlay) existingOverlay.remove();
+
+    // 캡처 오버레이 생성
+    const overlay = document.createElement('div');
+    overlay.id = 'captureOverlay';
+    overlay.className = 'capture-overlay';
+    overlay.innerHTML = `
+        <div class="capture-instruction">
+            드래그해서 캡처할 영역을 선택하세요
+            <button class="capture-cancel" onclick="window.pdfViewer.cancelCaptureMode()">취소</button>
+        </div>
+        <div class="capture-selection"></div>
+    `;
+    
+    pdfContainer.appendChild(overlay);
+    
+    let isSelecting = false;
+    let startX, startY;
+    const selection = overlay.querySelector('.capture-selection');
+    
+    // 마우스 이벤트 핸들러
+    const handleMouseDown = (e) => {
+        if (e.target.classList.contains('capture-cancel')) return;
+        
+        isSelecting = true;
+        const rect = pdfContainer.getBoundingClientRect();
+        startX = e.clientX - rect.left + pdfContainer.scrollLeft;
+        startY = e.clientY - rect.top + pdfContainer.scrollTop;
+        
+        selection.style.left = startX + 'px';
+        selection.style.top = startY + 'px';
+        selection.style.width = '0px';
+        selection.style.height = '0px';
+        selection.style.display = 'block';
+        
+        e.preventDefault();
+    };
+    
+    const handleMouseMove = (e) => {
+        if (!isSelecting) return;
+        
+        const rect = pdfContainer.getBoundingClientRect();
+        const currentX = e.clientX - rect.left + pdfContainer.scrollLeft;
+        const currentY = e.clientY - rect.top + pdfContainer.scrollTop;
+        
+        const width = Math.abs(currentX - startX);
+        const height = Math.abs(currentY - startY);
+        const left = Math.min(currentX, startX);
+        const top = Math.min(currentY, startY);
+        
+        selection.style.left = left + 'px';
+        selection.style.top = top + 'px';
+        selection.style.width = width + 'px';
+        selection.style.height = height + 'px';
+    };
+    
+    const handleMouseUp = async (e) => {
+        if (!isSelecting) return;
+        
+        isSelecting = false;
+        
+        const rect = pdfContainer.getBoundingClientRect();
+        const currentX = e.clientX - rect.left + pdfContainer.scrollLeft;
+        const currentY = e.clientY - rect.top + pdfContainer.scrollTop;
+        
+        const width = Math.abs(currentX - startX);
+        const height = Math.abs(currentY - startY);
+        const left = Math.min(currentX, startX);
+        const top = Math.min(currentY, startY);
+        
+        // 최소 크기 체크
+        if (width < 20 || height < 20) {
+            alert('캡처 영역이 너무 작습니다. 더 큰 영역을 선택해주세요.');
+            return;
+        }
+        
+        // 선택된 영역 캡처
+        await captureSelectedArea(left, top, width, height);
+        
+        // 캡처 모드 종료
+        cancelCaptureMode();
+    };
+    
+    // 이벤트 리스너 등록
+    overlay.addEventListener('mousedown', handleMouseDown);
+    overlay.addEventListener('mousemove', handleMouseMove);
+    overlay.addEventListener('mouseup', handleMouseUp);
+    
+    // 전역에서 마우스 이벤트도 처리 (드래그가 오버레이 밖으로 나갈 경우)
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    
+    // 정리 함수 저장
+    overlay._cleanup = () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+    };
+}
+
+// 선택된 영역 캡처
+async function captureSelectedArea(left, top, width, height) {
+    try {
+        const pdfContainer = document.getElementById('pdfContainer');
+        const canvases = pdfContainer.querySelectorAll('canvas');
+        
+        if (canvases.length === 0) {
+            console.warn('렌더된 페이지가 없습니다.');
+            return null;
+        }
+
+        // 임시 캔버스 생성
+        const captureCanvas = document.createElement('canvas');
+        const captureContext = captureCanvas.getContext('2d');
+        
+        // 메모리 절약을 위한 스케일 조정
+        const scale = width * height > 50000 ? 1 : 2; // 큰 영역은 저해상도
+        captureCanvas.width = width * scale;
+        captureCanvas.height = height * scale;
+        captureContext.scale(scale, scale);
+        
+        // 배경을 흰색으로 설정
+        captureContext.fillStyle = '#ffffff';
+        captureContext.fillRect(0, 0, width, height);
+
+        // 각 페이지 캔버스에서 선택된 영역 그리기
+        const containerRect = pdfContainer.getBoundingClientRect();
+        
+        canvases.forEach(canvas => {
+            const canvasRect = canvas.getBoundingClientRect();
+            const canvasRelative = {
+                left: canvasRect.left - containerRect.left + pdfContainer.scrollLeft,
+                top: canvasRect.top - containerRect.top + pdfContainer.scrollTop,
+                width: canvasRect.width,
+                height: canvasRect.height
+            };
+
+            // 선택 영역과 캔버스의 교차 영역 계산
+            const intersection = {
+                left: Math.max(0, left - canvasRelative.left),
+                top: Math.max(0, top - canvasRelative.top),
+                right: Math.min(canvasRelative.width, left + width - canvasRelative.left),
+                bottom: Math.min(canvasRelative.height, top + height - canvasRelative.top)
+            };
+
+            if (intersection.right > intersection.left && intersection.bottom > intersection.top) {
+                const sourceX = intersection.left;
+                const sourceY = intersection.top;
+                const sourceWidth = intersection.right - intersection.left;
+                const sourceHeight = intersection.bottom - intersection.top;
+                
+                const destX = Math.max(0, canvasRelative.left - left);
+                const destY = Math.max(0, canvasRelative.top - top);
+
+                captureContext.drawImage(
+                    canvas,
+                    sourceX, sourceY, sourceWidth, sourceHeight,
+                    destX, destY, sourceWidth, sourceHeight
+                );
+            }
+        });
+
+        // 메모리 절약: JPEG 포맷으로 압축
+        const imageData = captureCanvas.toDataURL('image/jpeg', 0.8);
+        
+        // 간단한 채팅창 표시
+        showSimpleChat(imageData);
+        
+        return imageData;
+    } catch (error) {
+        console.error('영역 캡처 오류:', error);
+        return null;
+    }
+}
+
+// 간단한 채팅창을 PDF 중앙 하단에 표시
+function showSimpleChat(imageData) {
+    // 기존 임시 채팅창이 있으면 제거
+    const existingTempChat = document.getElementById('tempChatContainer');
+    if (existingTempChat) {
+        existingTempChat.remove();
+    }
+
+    const pdfContainer = document.getElementById('pdfContainer');
+    const tempChatContainer = document.createElement('div');
+    tempChatContainer.id = 'tempChatContainer';
+    tempChatContainer.className = 'simple-chat-container';
+    
+    tempChatContainer.innerHTML = `
+        <div class="simple-chat-content">
+            <div class="simple-chat-image">
+                <img src="${imageData}" alt="캡처된 이미지" />
+            </div>
+            <div class="simple-chat-input">
+                <input type="text" id="tempChatInput" placeholder="이미지에 대해 질문하세요..." />
+                <button class="simple-send-btn" onclick="window.pdfViewer.sendImageQuery('${imageData}')">전송</button>
+                <button class="simple-close-btn" onclick="window.pdfViewer.closeTempChat()">×</button>
+            </div>
+        </div>
+    `;
+
+    // PDF 컨테이너 내부 하단에 고정
+    pdfContainer.appendChild(tempChatContainer);
+    
+    // 입력창에 포커스
+    setTimeout(() => {
+        const input = document.getElementById('tempChatInput');
+        if (input) {
+            input.focus();
+            // Enter 키로 전송
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    window.pdfViewer.sendImageQuery(imageData);
+                }
+            });
+        }
+    }, 100);
+}
+
+// 캡처 모드 취소
+export function cancelCaptureMode() {
+    const overlay = document.getElementById('captureOverlay');
+    if (overlay) {
+        if (overlay._cleanup) overlay._cleanup();
+        overlay.remove();
+    }
+}
+
+// 임시 채팅창을 표시하는 함수
+export function showTemporaryChat(imageData) {
+    // 기존 임시 채팅창이 있으면 제거
+    const existingTempChat = document.getElementById('tempChatContainer');
+    if (existingTempChat) {
+        existingTempChat.remove();
+    }
+
+    const pdfContainer = document.getElementById('pdfContainer');
+    const tempChatContainer = document.createElement('div');
+    tempChatContainer.id = 'tempChatContainer';
+    tempChatContainer.className = 'temp-chat-container';
+    
+    tempChatContainer.innerHTML = `
+        <div class="temp-chat-content">
+            <div class="temp-chat-header">
+                <h4>캡처된 이미지로 질문하기</h4>
+                <button class="temp-chat-close" onclick="window.pdfViewer.closeTempChat()">×</button>
+            </div>
+            
+            <div class="captured-image-preview">
+                <img src="${imageData}" alt="캡처된 이미지" />
+            </div>
+            
+            <div class="temp-chat-input-area">
+                <textarea id="tempChatInput" placeholder="캡처된 이미지에 대해 질문하세요..." rows="3"></textarea>
+                <div class="temp-chat-buttons">
+                    <button class="temp-chat-send" onclick="window.pdfViewer.sendImageQuery('${imageData}')">전송</button>
+                    <button class="temp-chat-cancel" onclick="window.pdfViewer.closeTempChat()">취소</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    // PDF 컨테이너 다음에 삽입
+    pdfContainer.parentNode.insertBefore(tempChatContainer, pdfContainer.nextSibling);
+    
+    // 입력창에 포커스
+    setTimeout(() => {
+        const input = document.getElementById('tempChatInput');
+        if (input) input.focus();
+    }, 100);
+}
+
+// 임시 채팅창 닫기
+export function closeTempChat() {
+    const tempChatContainer = document.getElementById('tempChatContainer');
+    if (tempChatContainer) {
+        // 메모리 누수 방지: 이미지 src 정리
+        const images = tempChatContainer.querySelectorAll('img');
+        images.forEach(img => {
+            img.src = '';
+            img.remove();
+        });
+        tempChatContainer.remove();
+        
+        // 강제 가비지 컬렉션 트리거 (가능한 경우)
+        if (window.gc) {
+            window.gc();
+        }
+    }
+}
+
+// 이미지 쿼리 전송
+export async function sendImageQuery(imageData) {
+    const input = document.getElementById('tempChatInput');
+    const message = input?.value?.trim();
+    
+    if (!message) {
+        alert('질문을 입력해주세요.');
+        return;
+    }
+
+    try {
+        // 임시 채팅창 닫기
+        closeTempChat();
+        
+        // 채팅 모듈이 있다면 이미지와 함께 메시지 전송
+        if (window.chat && typeof window.chat.sendMessageWithImage === 'function') {
+            await window.chat.sendMessageWithImage(message, imageData);
+        } else if (window.chat && typeof window.chat.sendMessage === 'function') {
+            // 이미지 첨부 기능이 없다면 일반 메시지로 전송
+            await window.chat.sendMessage(`[이미지 첨부됨] ${message}`);
+            console.log('이미지 데이터:', imageData.substring(0, 100) + '...');
+        } else {
+            console.warn('채팅 모듈을 찾을 수 없습니다.');
+            alert('채팅 기능을 사용할 수 없습니다.');
+        }
+    } catch (error) {
+        console.error('이미지 쿼리 전송 오류:', error);
+        alert('메시지 전송 중 오류가 발생했습니다.');
     }
 }
 

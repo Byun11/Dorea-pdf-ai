@@ -324,6 +324,11 @@ window.renameSession = Chat.renameSession;
 window.deleteSession = Chat.deleteSession;
 window.sendMessage = Chat.sendMessage;
 
+window.chat = {
+    sendMessage: Chat.sendMessage,
+    sendMessageWithImage: Chat.sendMessageWithImage
+};
+
 window.chatManager = {
     switchToSession: Chat.switchToSession,
     newSession: Chat.newSession,
@@ -340,6 +345,11 @@ window.pdfViewer = {
     nextPage: PDFViewer.nextPage,
     previousPage: PDFViewer.previousPage,
     captureSegmentAsImage: PDFViewer.captureSegmentAsImage,
+    captureCurrentView: PDFViewer.captureCurrentView,
+    closeTempChat: PDFViewer.closeTempChat,
+    sendImageQuery: PDFViewer.sendImageQuery,
+    cancelCaptureMode: PDFViewer.cancelCaptureMode,
+    getCurrentPage: PDFViewer.getCurrentPage,
     setViewMode: PDFViewer.setViewMode,
     toggleSegments: PDFViewer.toggleSegments,
     toggleViewSettings: PDFViewer.toggleViewSettings,
@@ -777,6 +787,11 @@ window.renameSession = Chat.renameSession;
 window.deleteSession = Chat.deleteSession;
 window.sendMessage = Chat.sendMessage;
 
+window.chat = {
+    sendMessage: Chat.sendMessage,
+    sendMessageWithImage: Chat.sendMessageWithImage
+};
+
 window.chatManager = {
     switchToSession: Chat.switchToSession,
     newSession: Chat.newSession,
@@ -793,6 +808,11 @@ window.pdfViewer = {
     nextPage: PDFViewer.nextPage,
     previousPage: PDFViewer.previousPage,
     captureSegmentAsImage: PDFViewer.captureSegmentAsImage,
+    captureCurrentView: PDFViewer.captureCurrentView,
+    closeTempChat: PDFViewer.closeTempChat,
+    sendImageQuery: PDFViewer.sendImageQuery,
+    cancelCaptureMode: PDFViewer.cancelCaptureMode,
+    getCurrentPage: PDFViewer.getCurrentPage,
     setViewMode: PDFViewer.setViewMode,
     toggleSegments: PDFViewer.toggleSegments,
     toggleViewSettings: PDFViewer.toggleViewSettings,
