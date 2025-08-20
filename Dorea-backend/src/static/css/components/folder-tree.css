@@ -98,24 +98,12 @@
     overflow: hidden; /* 넘치는 콘텐츠 숨김 */
 }
 
+/* 평면 구조에서는 확장/축소 아이콘 불필요 */
 .expand-icon {
     width: 16px;
     height: 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
+    display: none; /* 평면 구조로 변경으로 확장 아이콘 숨김 */
     margin-right: 0.5rem;
-    transition: transform 0.2s;
-    color: #6b7280;
-}
-
-.expand-icon.has-children {
-    cursor: pointer;
-}
-
-.expand-icon.expanded {
-    transform: rotate(0deg);
 }
 
 .folder-icon,

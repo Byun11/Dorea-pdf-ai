@@ -143,7 +143,7 @@ function renderTreeItems(items, level = 0) {
 function renderFolderItem(folder, level) {
     const isExpanded = expandedFolders.has(folder.id);
     const isSelected = selectedFolderId === folder.id;
-    const hasChildren = folder.children.length > 0 || folder.files.length > 0;
+    const hasFiles = folder.files.length > 0;
     
     const folderContent = `
         <div class="tree-item folder-item ${isSelected ? 'selected' : ''}" 
@@ -151,12 +151,12 @@ function renderFolderItem(folder, level) {
              data-id="${folder.id}"
              style="padding-left: ${level * 20}px">
             <div class="tree-item-content" onclick="folderTreeManager.toggleFolder(${folder.id})">
-                <span class="expand-icon ${hasChildren ? 'has-children' : ''} ${isExpanded ? 'expanded' : ''}">
-                    ${hasChildren ? (isExpanded ? '▼' : '▶') : ''}
+                <span class="expand-icon ${hasFiles ? 'has-children' : ''} ${isExpanded ? 'expanded' : ''}">
+                    ${hasFiles ? (isExpanded ? '▼' : '▶') : ''}
                 </span>
                 <span class="folder-icon">📁</span>
                 <span class="item-name">${folder.name}</span>
-                <span class="item-count">(${folder.files.length + folder.children.length})</span>
+                <span class="item-count">(${folder.files.length})</span>
             </div>
             <div class="folder-actions">
                 <button onclick="event.stopPropagation(); folderTreeManager.showFolderContextMenu(${folder.id}, event)" 
@@ -165,19 +165,12 @@ function renderFolderItem(folder, level) {
         </div>
     `;
 
-    let childrenContent = '';
-    if (isExpanded && hasChildren) {
-        // 하위 폴더들 먼저
-        if (folder.children.length > 0) {
-            childrenContent += renderTreeItems(folder.children, level + 1);
-        }
-        // 그 다음 파일들
-        if (folder.files.length > 0) {
-            childrenContent += renderTreeItems(folder.files, level + 1);
-        }
+    let filesContent = '';
+    if (isExpanded && hasFiles) {
+        filesContent += renderTreeItems(folder.files, level + 1);
     }
 
-    return folderContent + childrenContent;
+    return folderContent + filesContent;
 }
 
 // 파일 아이템 렌더링
@@ -241,7 +234,7 @@ async function selectFile(fileId) {
 }
 
 // 새 폴더 생성
-async function createNewFolder(parentId = null) {
+async function createNewFolder() {
     const folderName = prompt('새 폴더 이름을 입력하세요:');
     if (!folderName || !folderName.trim()) return;
 
@@ -249,8 +242,7 @@ async function createNewFolder(parentId = null) {
         const response = await fetchApi('/api/folders', {
             method: 'POST',
             body: JSON.stringify({
-                name: folderName.trim(),
-                parent_id: parentId
+                name: folderName.trim()
             })
         });
 
@@ -351,17 +343,14 @@ async function moveFile(fileId, newFolderId) {
     }
 }
 
-// 트리에서 아이템 찾기
+// 트리에서 아이템 찾기 (평면 구조)
 function findItemInTree(items, id, type) {
     for (const item of items) {
         // ID 비교 시 타입 변환 (숫자 ↔ 문자열)
         if (item.type === type && String(item.id) === String(id)) {
             return item;
         }
-        if (item.type === 'folder' && item.children) {
-            const found = findItemInTree(item.children, id, type);
-            if (found) return found;
-        }
+        // 폴더 내 파일 검색
         if (item.type === 'folder' && item.files) {
             const found = findItemInTree(item.files, id, type);
             if (found) return found;
@@ -377,11 +366,8 @@ function showFolderContextMenu(folderId, event) {
     
     const contextMenu = document.getElementById('folderContextMenu') || createFolderContextMenu();
     
-    // 메뉴 항목 업데이트
+    // 메뉴 항목 업데이트 (하위 폴더 생성 제거)
     contextMenu.innerHTML = `
-        <div class="context-menu-item" onclick="folderTreeManager.createNewFolder(${folderId})">
-            📁 하위 폴더 만들기
-        </div>
         <div class="context-menu-item" onclick="folderTreeManager.renameFolder(${folderId})">
             ✏️ 이름 변경
         </div>
@@ -483,7 +469,7 @@ function createFileContextMenu() {
     return menu;
 }
 
-// 트리에서 파일 찾기 (재귀)
+// 트리에서 파일 찾기 (평면 구조)
 function findFileInTree(tree, fileId) {
     for (const item of tree) {
         if (item.type === 'file' && item.id === fileId) {
@@ -494,10 +480,6 @@ function findFileInTree(tree, fileId) {
                 if (file.id === fileId) {
                     return file;
                 }
-            }
-            if (item.children) {
-                const found = findFileInTree(item.children, fileId);
-                if (found) return found;
             }
         }
     }
@@ -646,7 +628,7 @@ function showMoveFileDialog(fileId) {
     document.body.appendChild(dialog);
 }
 
-// 모든 폴더를 평면 목록으로 변환
+// 모든 폴더를 평면 목록으로 변환 (평면 구조)
 function getAllFolders(items, level = 0, result = []) {
     items.forEach(item => {
         if (item.type === 'folder') {
@@ -655,9 +637,6 @@ function getAllFolders(items, level = 0, result = []) {
                 name: item.name,
                 level: level
             });
-            if (item.children && item.children.length > 0) {
-                getAllFolders(item.children, level + 1, result);
-            }
         }
     });
     return result;

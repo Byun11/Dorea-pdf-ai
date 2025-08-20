@@ -111,29 +111,9 @@
     position: relative;
 }
 
+/* 평면 구조로 변경: 확장/축소 아이콘 및 하위 폴더 스타일 제거 */
 .knowledge-sidebar .tree-node.folder::before {
-    content: "▼";
-    margin-right: 4px;
-    font-size: 12px;
-    transition: transform 0.2s ease;
-    display: inline-block;
-    width: 12px;
-    text-align: center;
-}
-
-.knowledge-sidebar .tree-node.folder.collapsed::before {
-    transform: rotate(-90deg);
-}
-
-.knowledge-sidebar .folder-children {
-    margin-left: 20px;
-    overflow: hidden;
-    transition: max-height 0.3s ease;
-    max-height: 1000px; /* 초기 상태는 열려있음 */
-}
-
-.knowledge-sidebar .folder-children.collapsed {
-    max-height: 0;
+    display: none; /* 평면 구조에서는 확장 아이콘 불필요 */
 }
 
 .knowledge-sidebar .tree-node.file {
