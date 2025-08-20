@@ -614,6 +614,173 @@ export async function sendMessage(customMessage = null) {
     await processMessage(message, selectedSegments);
 }
 
+// 이미지와 함께 메시지를 전송하는 함수
+export async function sendMessageWithImage(message, imageData) {
+    if (!message || isTyping) return;
+
+    if (!currentChatSession) {
+        showNotification('먼저 파일을 선택해주세요.', 'warning');
+        return;
+    }
+
+    console.log('🖼️ [DEBUG] sendMessageWithImage 호출:');
+    console.log('  - 메시지:', message);
+    console.log('  - 이미지 데이터 길이:', imageData ? imageData.length : 0);
+    
+    // 메모리 부족 방지: 이미지 데이터 압축 체크
+    if (imageData && imageData.length > 100000) {
+        console.warn('⚠️ 큰 이미지 데이터 감지:', imageData.length, '바이트');
+    }
+    
+    // 이미지 세그먼트 생성
+    const imageSegment = {
+        type: 'image',
+        content: imageData,
+        page: (window.pdfViewer && window.pdfViewer.getCurrentPage ? window.pdfViewer.getCurrentPage() : null) || 1,
+        description: '캡처된 화면 이미지'
+    };
+    
+    // 이미지를 포함한 메시지 처리
+    await processImageMessage(message, [imageSegment]);
+}
+
+// 이미지 메시지 처리 전용 함수
+async function processImageMessage(message, imageSegments) {
+    addMessage(message, true);
+    
+    // 캡처된 이미지 표시
+    const lastMessage = document.querySelector('.message:last-child .message-content');
+    if (lastMessage && imageSegments.length > 0) {
+        const imagePreview = document.createElement('div');
+        imagePreview.className = 'message-image-preview';
+        imagePreview.innerHTML = `
+            <div style="margin-top: 8px; padding: 8px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">
+                <div style="font-size: 12px; color: #6c757d; margin-bottom: 4px;">📷 첨부된 이미지</div>
+                <img src="${imageSegments[0].content}" style="max-width: 200px; max-height: 120px; border-radius: 4px; object-fit: contain; background: white; border: 1px solid #dee2e6;" alt="캡처된 이미지">
+            </div>
+        `;
+        lastMessage.appendChild(imagePreview);
+    }
+
+    isTyping = true;
+    const typingIndicator = addTypingIndicator();
+
+    try {
+        // 현재 세션의 대화 히스토리 가져오기
+        let conversationHistory = [];
+        try {
+            const historyResponse = await fetchApi(`/chats/${currentChatSession.sessionId}/messages`);
+            if (historyResponse.ok) {
+                const historyData = await historyResponse.json();
+                const recentMessages = historyData.messages.slice(-3);
+                conversationHistory = recentMessages.map(msg => ({
+                    role: msg.is_user ? 'user' : 'assistant',
+                    content: msg.content
+                }));
+            }
+        } catch (error) {
+            console.warn('대화 히스토리 로드 실패:', error);
+        }
+
+        // API 요청 데이터 구성
+        const requestBody = {
+            segments: imageSegments,
+            query: message,
+            conversation_history: conversationHistory
+        };
+
+        console.log('🔍 [DEBUG] 이미지 메시지 백엔드로 전송할 데이터:');
+        console.log(`  - Segments: ${imageSegments.length}개 (이미지)`);
+        console.log(`  - Query: ${message}`);
+        console.log(`  - Conversation History: ${conversationHistory.length}개`);
+
+        // 스트리밍 API 호출
+        const response = await fetchApi('/gpt/multi-segment-stream', {
+            method: 'POST',
+            body: JSON.stringify(requestBody)
+        });
+
+        typingIndicator.remove();
+        const messageEl = addMessage('', false, true);
+        const contentEl = messageEl.querySelector('.message-content');
+
+        // 스트리밍 응답 처리
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const json = JSON.parse(line.substring(6));
+                        if (json.type === 'chunk' && json.content) {
+                            typeTextWithEffect(contentEl, json.content);
+                        } else if (json.type === 'info' && json.message) {
+                            typeTextWithEffect(contentEl, `\n\nℹ️ ${json.message}\n\n`);
+                        } else if (json.type === 'error') {
+                            contentEl.textContent += `❌ ${json.error}`;
+                            contentEl.style.color = '#dc2626';
+                        } else if (json.type === 'done') {
+                            const finalText = contentEl.dataset.rawText || '';
+                            if (finalText) {
+                                try {
+                                    const finalParsed = parseMarkdownWithMath(finalText);
+                                    contentEl.innerHTML = finalParsed;
+                                    
+                                    if (typeof renderMathInElement !== 'undefined') {
+                                        try {
+                                            renderMathInElement(contentEl, {
+                                                delimiters: [
+                                                    {left: '$', right: '$', display: true},
+                                                    {left: '', right: '', display: false},
+                                                    {left: '\\\\[', right: '\\\\]', display: true},
+                                                    {left: '\\(', right: '\\)', display: false}
+                                                ],
+                                                throwOnError: false,
+                                                errorColor: 'var(--error, #ef4444)',
+                                                strict: false,
+                                                trust: true
+                                            });
+                                        } catch (error) {
+                                            console.warn('최종 KaTeX 렌더링 오류:', error);
+                                        }
+                                    }
+                                } catch (error) {
+                                    console.warn('최종 마크다운 파싱 오류:', error);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('스트림 파싱 오류:', e);
+                    }
+                }
+            }
+        }
+
+        messageEl.classList.remove('streaming');
+
+        // 메시지 저장
+        await saveMessageToDB(`${message} [이미지 첨부됨]`, true, []);
+        await saveMessageToDB(contentEl.dataset.rawText || contentEl.textContent, false, null);
+
+    } catch (error) {
+        console.error('이미지 채팅 오류:', error);
+        if (typingIndicator) typingIndicator.remove();
+        addMessage(`죄송합니다. 오류가 발생했습니다: ${error.message}`, false);
+        showNotification('이미지 메시지 전송에 실패했습니다.', 'error');
+    } finally {
+        isTyping = false;
+    }
+}
+
 // RAG 벡터 검색 수행
 async function performVectorSearch(query, fileId) {
     console.log('🔍 [DEBUG] RAG 벡터 검색 시작:', query);
