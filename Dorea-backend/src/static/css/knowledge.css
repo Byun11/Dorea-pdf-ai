@@ -4,8 +4,7 @@
 
 /* 지식 관리 컨테이너 */
 .knowledge-container {
-    max-width: 1400px;
-    margin: 0 auto;
+    width: 100%;
     padding: var(--space-8);
     display: grid;
     grid-template-columns: 320px 1fr;
