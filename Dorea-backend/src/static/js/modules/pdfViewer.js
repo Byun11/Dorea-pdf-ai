@@ -296,9 +296,22 @@ export async function loadPdf(pdfArrayBuffer) {
     try {
         pdfDoc = await pdfjsLib.getDocument({ data: pdfArrayBuffer }).promise;
         currentPage = 1;
-        currentScale = 1.0; // 원본 크기로 초기화
-        autoFit = false;
-        
+
+        // Automatically determine the best initial scale (fit to width)
+        const pdfContainer = document.getElementById('pdfContainer');
+        if (!pdfContainer) {
+            console.error('PDF container not found for auto-scaling.');
+            currentScale = 1.0; // Fallback to default scale
+            autoFit = false;
+        } else {
+            const containerWidth = pdfContainer.clientWidth - 40; // Add some padding
+            const page = await pdfDoc.getPage(1);
+            const viewport = page.getViewport({ scale: 1.0 });
+            const scale = containerWidth / viewport.width;
+            currentScale = Math.max(Math.min(scale, maxScale), minScale);
+            autoFit = true; // Set autoFit to true as this is the current state
+        }
+
         return pdfDoc;
     } catch (error) {
         console.error('PDF 로드 오류:', error);
