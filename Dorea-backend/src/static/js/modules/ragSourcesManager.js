@@ -63,13 +63,20 @@ class RagSourcesManager {
 
     // 소스 데이터 처리 (public 메서드)
     processSourcesData(similarDocs) {
-        return similarDocs.map(doc => ({
-            pageNum: doc.metadata?.page_number || doc.page_number || doc.page || '?',
-            docType: doc.metadata?.segment_type || doc.type || 'Text',
-            similarity: doc.distance !== undefined ? Math.abs(((1 - doc.distance) * 100)).toFixed(1) : '?',
-            preview: doc.text ? doc.text.substring(0, 80) + '...' : '내용 없음',
-            segmentId: doc.metadata?.segment_id || doc.segment_id || null // 향후 백엔드 연동용
-        }));
+        return similarDocs.map(doc => {
+            console.log('🔍 RAG 문서 메타데이터:', doc.metadata);
+            return {
+                pageNum: doc.metadata?.page_number || doc.page_number || doc.page || '?',
+                docType: doc.metadata?.segment_type || doc.type || 'Text',
+                similarity: doc.distance !== undefined ? Math.abs(((1 - doc.distance) * 100)).toFixed(1) : '?',
+                preview: doc.text ? doc.text.substring(0, 80) + '...' : '내용 없음',
+                segmentId: doc.metadata?.segment_id || doc.segment_id || null,
+                chunkIndex: doc.metadata?.chunk_index || null,
+                subChunk: doc.metadata?.sub_chunk || null,
+                fullText: doc.text || '',
+                allMetadata: doc.metadata || {} // 디버깅용
+            };
+        });
     }
 
     // 패널 토글
@@ -237,20 +244,48 @@ class RagSourcesManager {
         
         // PDF 페이지 이동
         if (window.pdfViewer && window.pdfViewer.goToPage) {
-            window.pdfViewer.goToPage(parseInt(pageNum));
+            const success = window.pdfViewer.goToPage(parseInt(pageNum));
             
-            // 성공 알림
-            if (window.showNotification) {
-                window.showNotification(`페이지 ${pageNum}로 이동했습니다.`, 'success');
+            if (success) {
+                // 페이지 이동 후 세그먼트 하이라이팅
+                setTimeout(() => {
+                    if (window.pdfViewer.highlightSegmentText) {
+                        console.log('🔍 하이라이팅 시도:', {
+                            pageNum: pageNum,
+                            docType: sourceData.docType,
+                            preview: sourceData.preview?.substring(0, 30)
+                        });
+                        
+                        const highlighted = window.pdfViewer.highlightSegmentText(sourceData, parseInt(pageNum));
+                        
+                        if (highlighted) {
+                            console.log(`✅ 세그먼트 하이라이팅 성공`);
+                            
+                            // 성공 알림
+                            if (window.showNotification) {
+                                window.showNotification(`페이지 ${pageNum}로 이동하고 세그먼트를 하이라이팅했습니다.`, 'success');
+                            }
+                        } else {
+                            console.warn('⚠️ 세그먼트를 찾을 수 없어 하이라이팅하지 못했습니다.');
+                            
+                            // 페이지 이동만 알림
+                            if (window.showNotification) {
+                                window.showNotification(`페이지 ${pageNum}로 이동했습니다.`, 'success');
+                            }
+                        }
+                    } else {
+                        console.log('🔍 하이라이팅 함수를 찾을 수 없음');
+                        
+                        // 하이라이팅 없이 페이지 이동만
+                        if (window.showNotification) {
+                            window.showNotification(`페이지 ${pageNum}로 이동했습니다.`, 'success');
+                        }
+                    }
+                }, 1000); // PDF 페이지 렌더링을 기다림
             }
         } else {
             console.warn('PDF 뷰어를 찾을 수 없습니다.');
         }
-
-        // 향후 세그먼트 하이라이팅 로직 추가 예정
-        // if (segmentId && window.pdfViewer.highlightSegment) {
-        //     window.pdfViewer.highlightSegment(segmentId, pageNum);
-        // }
 
         // 커스텀 이벤트 발생
         document.dispatchEvent(new CustomEvent('ragSourceClicked', {

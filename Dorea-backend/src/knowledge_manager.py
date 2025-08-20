@@ -299,6 +299,9 @@ class KnowledgeManager:
             model_name = settings['model_name']
             batch_size = 128 if provider == 'openai' else 20  # Ollama 배치 크기 테스트
             
+            # 페이지별 인덱스 추적을 위한 딕셔너리
+            page_indices = {}
+            
             for i in range(0, len(segments), batch_size):
                 # 취소 상태 체크
                 if await self._check_cancelled_status(file_id):
@@ -323,6 +326,13 @@ class KnowledgeManager:
                         chunk_index = 0
                         
                         for j, segment in enumerate(batch_segments):
+                            # 페이지별 상대 인덱스 계산
+                            page_num = int(segment.get('page_number', 1))
+                            if page_num not in page_indices:
+                                page_indices[page_num] = 0
+                            page_relative_index = page_indices[page_num]
+                            page_indices[page_num] += 1
+                            
                             orig_chunks_count = chunk_mapping.count(j)
                             for k in range(orig_chunks_count):
                                 chunk_ids.append(f"{file_id}_{i+j}_{k}")
@@ -333,8 +343,9 @@ class KnowledgeManager:
                                     'user_id': str(user_id),
                                     'chunk_index': i+j, 
                                     'sub_chunk': k,
+                                    'segment_id': segment.get('id') or f"page{page_num}_{page_relative_index}",
                                     'segment_type': segment.get('type', 'text'),
-                                    'page_number': int(segment.get('page_number', 1)),
+                                    'page_number': page_num,
                                     'text_length': len(chunk_texts[chunk_index + k])
                                 }
                                 # 원본 segment의 다른 필드들도 복사
@@ -374,12 +385,23 @@ class KnowledgeManager:
                             continue
 
                         chunk_ids = [f"{file_id}_{i+j}" for j in range(len(batch_segments))]
-                        metadatas = [{
-                            'file_id': file_id, 'user_id': str(user_id),
-                            'chunk_index': i+j, 'segment_type': s.get('type', 'text'),
-                            'page_number': int(s.get('page_number', 1)),
-                            'text_length': len(s['text'])
-                        } for j, s in enumerate(batch_segments)]
+                        metadatas = []
+                        for j, s in enumerate(batch_segments):
+                            # 페이지별 상대 인덱스 계산
+                            page_num = int(s.get('page_number', 1))
+                            if page_num not in page_indices:
+                                page_indices[page_num] = 0
+                            page_relative_index = page_indices[page_num]
+                            page_indices[page_num] += 1
+                            
+                            metadatas.append({
+                                'file_id': file_id, 'user_id': str(user_id),
+                                'chunk_index': i+j, 
+                                'segment_id': s.get('id') or f"page{page_num}_{page_relative_index}",
+                                'segment_type': s.get('type', 'text'),
+                                'page_number': page_num,
+                                'text_length': len(s['text'])
+                            })
 
                         try:
                             collection.add(embeddings=batch_embeddings, documents=batch_texts, ids=chunk_ids, metadatas=metadatas)
