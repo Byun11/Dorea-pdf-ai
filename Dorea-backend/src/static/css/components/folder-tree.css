@@ -1,11 +1,19 @@
 /* folder-tree.css - 폴더 트리뷰 스타일 */
 
-.folder-tree-container,
-.folder-tree {
+.folder-tree-container {
     height: 100%;
+    background: var(--bg-primary, #ffffff);
+    border-radius: var(--radius-xl, 12px);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.folder-tree {
+    flex: 1;
     overflow-y: auto;
-    border-right: 1px solid #e5e7eb;
-    background: #ffffff;
+    padding: var(--space-4, 1rem);
 }
 
 /* 다크모드 지원 */
@@ -17,9 +25,10 @@
 }
 
 .folder-tree-header {
-    padding: 1rem;
-    border-bottom: 1px solid #e5e7eb;
-    background: #f9fafb;
+    padding: var(--space-6, 1.5rem);
+    border-bottom: 1px solid var(--border-primary, #e5e7eb);
+    background: var(--bg-tertiary, #f9fafb);
+    flex-shrink: 0;
 }
 
 [data-theme="dark"] .folder-tree-header {
@@ -28,10 +37,13 @@
 }
 
 .folder-tree-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #374151;
-    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary, #374151);
+    margin: 0 0 var(--space-2, 0.5rem) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
 }
 
 [data-theme="dark"] .folder-tree-title {
@@ -40,7 +52,10 @@
 
 .folder-tree-actions {
     display: flex;
-    gap: 0.5rem;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2, 0.5rem);
+    width: 100%;
 }
 
 .create-folder-btn {
@@ -63,17 +78,38 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem 1rem;
-    border-bottom: 1px solid #f3f4f6;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border-radius: var(--radius-md, 6px);
     cursor: pointer;
-    transition: background-color 0.15s;
+    transition: all 0.2s ease;
     position: relative;
-    flex-wrap: nowrap; /* 줄바꿈 방지 */
-    min-height: 40px; /* 최소 높이 설정 */
+    flex-wrap: nowrap;
+    min-height: 40px;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+
+/* 폴더 아이템 하단에 구분선 추가 */
+.tree-item.folder-item::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: #d1d5db;
+}
+
+/* 다크모드 폴더 구분선 */
+[data-theme="dark"] .tree-item.folder-item::after {
+    background: #4b5563;
 }
 
 .tree-item:hover {
-    background: #f9fafb;
+    background: var(--bg-tertiary, #f9fafb);
+    transform: translateX(2px);
 }
 
 [data-theme="dark"] .tree-item:hover {
@@ -82,7 +118,8 @@
 
 .tree-item.selected {
     background: #eff6ff;
-    border-left: 3px solid #2563eb;
+    border: 1px solid var(--primary, #2563eb);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.15);
 }
 
 [data-theme="dark"] .tree-item.selected {
