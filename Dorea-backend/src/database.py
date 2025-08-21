@@ -135,6 +135,7 @@ class Folder(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)  # 사용자 FK
+    parent_id = Column(Integer, ForeignKey("folders.id"), nullable=True, index=True)  # 부모 폴더 FK (계층 구조)
     name = Column(String(255), nullable=False)  # 폴더 이름
     
     # 메타데이터
@@ -147,6 +148,10 @@ class Folder(Base):
     # 관계 설정
     user = relationship("User", back_populates="folders")
     files = relationship("PDFFile", back_populates="folder")
+    
+    # 자기 참조 관계 (계층 구조)
+    parent = relationship("Folder", remote_side=[id], back_populates="children")
+    children = relationship("Folder", back_populates="parent")
     
     def __repr__(self):
         return f"<Folder(id={self.id}, name='{self.name}', user_id={self.user_id})>"
