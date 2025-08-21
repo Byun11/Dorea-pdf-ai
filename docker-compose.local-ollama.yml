@@ -1,0 +1,14 @@
+# Docker Compose override file for using local Ollama installation
+# Usage: docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
+
+services:
+  pdf-ai:
+    environment:
+      # Use local Ollama instead of container Ollama
+      - OLLAMA_API_URL=http://host.docker.internal:11434
+    depends_on:
+      # Remove ollama dependency since we're using local installation
+      - huridocs
+
+# Remove ollama service entirely - we'll use local installation
+# The local Ollama should be running on port 11434
