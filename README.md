@@ -67,44 +67,49 @@ Dorea.bat
 
 #### 표준 배포 (로컬 빌드)
 ```bash
-# 기본 실행
-docker compose up --build
+# 1. 기본 실행
+docker compose up --build   
 
-# GPU 가속 지원
+# 2. GPU 가속 지원 
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 
-# 로컬 Ollama 연동
+# 3. 로컬 Ollama 연동
 docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
 
-# GPU + 로컬 Ollama 연동
+# 4. GPU + 로컬 Ollama 연동
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up --build
 ```
 
 #### 사전 빌드 이미지 배포
 ```bash
-# 기본 실행 (빌드 과정 생략)
+# 5. 기본 실행 (빌드 과정 생략)
 docker compose -f docker-compose.hub.yml up
 
-# GPU 가속 지원
+# 6. GPU 가속 지원
 docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml up
 
-# 로컬 Ollama 연동
+# 7. 로컬 Ollama 연동
 docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up
 
-# GPU + 로컬 Ollama 연동
+# 8. GPU + 로컬 Ollama 연동
 docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up
 ```
 
 #### 실행 옵션 가이드
 
-| 환경 | 실행 방식 | 특징 |
-|------|-----------|------|
-| 개발/테스트 | 로컬 빌드 | 소스 코드 수정 반영 |
-| 프로덕션/내부망 | 사전 빌드 이미지 | 빠른 배포, 안정성 |
-| GPU 환경 | GPU 옵션 추가 | 문서 처리 성능 향상 |
-| Ollama 기존 설치 | 로컬 Ollama 연동 | 기존 모델 및 설정 활용 |
+| 번호 | 환경 | 명령어 | 특징 |
+|------|------|--------|------|
+| 1-4 | 개발/테스트 | 로컬 빌드 명령어 | 소스 코드 수정 반영, 실시간 개발 |
+| 5-8 | 프로덕션/내부망 | 사전 빌드 이미지 | 빠른 배포, 안정성, 네트워크 절약 |
+| 2,4,6,8 | GPU 환경 | GPU 옵션 추가 | HURIDOCS 문서 처리 성능 향상 |
+| 3,4,7,8 | 기존 Ollama | 로컬 Ollama 연동 | 기존 모델 및 설정 활용, 컨테이너 제거 |
 
-> **참고**: 로컬 Ollama 사용 시 호스트에서 Ollama 서비스가 11434 포트에서 실행 중이어야 합니다.
+**공통 종료 명령어:**
+```bash
+docker compose down
+```
+
+> **참고**: 로컬 Ollama 사용 시(3,4,7,8번) 호스트에서 `ollama serve` 명령으로 11434 포트에서 실행 중이어야 합니다.
 
 ### 접속 주소
 - 메인 앱: http://localhost:8000

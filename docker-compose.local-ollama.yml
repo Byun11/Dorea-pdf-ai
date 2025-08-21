@@ -10,5 +10,7 @@ services:
       # Remove ollama dependency since we're using local installation
       - huridocs
 
-# Remove ollama service entirely - we'll use local installation
-# The local Ollama should be running on port 11434
+  # Completely disable ollama service - use local installation instead
+  # The local Ollama should be running on port 11434
+  ollama:
+    scale: 0
