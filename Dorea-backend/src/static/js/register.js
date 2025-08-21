@@ -68,12 +68,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 회원가입 성공
                 showSuccess('회원가입이 완료되었습니다! 로그인 페이지로 이동합니다...');
                 
-                // JWT 토큰 저장
-                localStorage.setItem('token', result.access_token);
-                
-                // 2초 후 앱 페이지로 리다이렉트
+                // 2초 후 로그인 페이지로 리다이렉트
                 setTimeout(() => {
-                    window.location.href = '/app';
+                    window.location.href = '/login';
                 }, 2000);
             } else {
                 // 회원가입 실패

@@ -167,6 +167,10 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
 
+class RegisterResponse(BaseModel):
+    message: str
+    username: str
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -322,7 +326,7 @@ async def verify_api_key_endpoint(request: ApiKeyRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 # JWT 인증 엔드포인트
-@app.post("/auth/register", response_model=TokenResponse)
+@app.post("/auth/register", response_model=RegisterResponse)
 async def register_user(request: UserRegisterRequest, db: Session = Depends(get_db)):
     """사용자 회원가입"""
     # 사용자 이름 중복 확인
@@ -348,13 +352,7 @@ async def register_user(request: UserRegisterRequest, db: Session = Depends(get_
     db.commit()
     db.refresh(new_user)
     
-    # JWT 토큰 생성
-    access_token_expires = timedelta(hours=24)
-    access_token = create_access_token(
-        data={"sub": new_user.username}, expires_delta=access_token_expires
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"message": "회원가입이 완료되었습니다", "username": new_user.username}
 
 @app.post("/auth/login", response_model=TokenResponse)
 async def login_user(request: UserLoginRequest, db: Session = Depends(get_db)):
