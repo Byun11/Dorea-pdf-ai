@@ -33,8 +33,8 @@ class KnowledgeManager:
             path=chroma_path,
             settings=Settings(anonymized_telemetry=False)
         )
-        # Ollama 비동기 클라이언트 초기화 (Docker 내부 통신용)
-        self.ollama_base_url = "http://ollama:11434" # Store base URL
+        # Ollama 비동기 클라이언트 초기화 (환경변수 사용)
+        self.ollama_base_url = os.getenv("OLLAMA_API_URL", "http://ollama:11434")
         self.ollama_client = ollama.AsyncClient(host=self.ollama_base_url)
         
         # 배치 지원 캐시 (모델별로 한 번만 테스트)
