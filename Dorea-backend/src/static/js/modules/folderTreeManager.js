@@ -626,6 +626,13 @@ async function deleteFile(fileId) {
         
         if (response.ok) {
             showNotification('파일이 삭제되었습니다.', 'success');
+            
+            // fileDeleted 이벤트 발생 (landing-container 표시를 위해)
+            const event = new CustomEvent('fileDeleted', {
+                detail: { fileId }
+            });
+            document.dispatchEvent(event);
+            
             // 트리 새로고침
             await loadFolderTree();
         } else {

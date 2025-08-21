@@ -30,7 +30,7 @@ class DefensiveSegmentUpdater {
         
         // 렌더링 완료 표시
         this.renderingPages.delete(pageNum);
-        console.log(`✅ 페이지 ${pageNum} 렌더링 완료`);
+        // console.log(`✅ 페이지 ${pageNum} 렌더링 완료`);
         
         // 업데이트 큐에 추가
         this.queueUpdate({
@@ -110,7 +110,7 @@ class DefensiveSegmentUpdater {
         try {
             overlay.innerHTML = ''; // 클리어
             overlay.appendChild(fragment); // 한 번에 추가
-            console.log(`✨ 페이지 ${pageNum} 세그먼트 ${pageSegments.length}개 업데이트 완료`);
+            // console.log(`✨ 페이지 ${pageNum} 세그먼트 ${pageSegments.length}개 업데이트 완료`);
         } catch (error) {
             console.error(`세그먼트 DOM 업데이트 실패:`, error);
             // 기존 방식으로 fallback

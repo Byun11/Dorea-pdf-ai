@@ -365,13 +365,13 @@ export async function deleteFile(fileId) {
         if (response.ok) {
             fileQueue = fileQueue.filter(f => f.id !== fileId);
 
+            // fileDeleted 이벤트 발생 (landing-container 표시를 위해)
+            const event = new CustomEvent('fileDeleted', {
+                detail: { fileId }
+            });
+            document.dispatchEvent(event);
+
             if (currentFileId === fileId) {
-                // 파일 삭제 이벤트 발생
-                const event = new CustomEvent('fileDeleted', {
-                    detail: { fileId }
-                });
-                document.dispatchEvent(event);
-                
                 currentFileId = null;
             }
             showNotification('파일이 삭제되었습니다.', 'success');
