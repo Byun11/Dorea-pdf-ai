@@ -80,7 +80,7 @@ docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --bui
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up --build
 ```
 
-#### 사전 빌드 이미지 배포
+#### 사전 빌드 이미지 배포 (내부망 등 직접 빌드가 어려운 경우)
 ```bash
 # 5. 기본 실행 (빌드 과정 생략)
 docker compose -f docker-compose.hub.yml up

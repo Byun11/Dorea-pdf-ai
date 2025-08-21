@@ -68,8 +68,8 @@ if !PORT_CONFLICT! == 1 (
 
 :: STEP 4: Select execution mode
 echo [4/5] Select execution mode:
-echo   1. CPU Mode (Recommended for most users)
-echo   2. GPU Mode (Requires NVIDIA GPU with Docker GPU support)
+echo   1. Pre-built Image (빠른 시작 - 내부망/폐쇄망 권장)
+echo   2. Pre-built Image + GPU (GPU 가속 지원)
 echo.
 set /p MODE="Enter your choice [1/2]: "
 
@@ -80,15 +80,15 @@ echo.
 echo [5/5] Starting Dorea services...
 
 if "%MODE%"=="2" (
-    echo Starting in GPU mode...
-    docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+    echo Starting with pre-built image + GPU...
+    docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml up -d
     if errorlevel 1 (
         echo [ERROR] Failed to start in GPU mode. Trying CPU mode...
-        docker compose -f docker-compose.yml up -d --build
+        docker compose -f docker-compose.hub.yml up -d
     )
 ) else (
-    echo Starting in CPU mode...
-    docker compose -f docker-compose.yml up -d --build
+    echo Starting with pre-built image...
+    docker compose -f docker-compose.hub.yml up -d
 )
 
 if errorlevel 1 (
