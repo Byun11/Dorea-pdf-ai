@@ -274,6 +274,12 @@
     overflow: hidden;
 }
 
+[data-theme="dark"] .context-menu {
+    background: #1f2937;
+    border-color: #374151;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+}
+
 .context-menu-item {
     padding: 0.75rem 1rem;
     font-size: 0.875rem;
@@ -285,16 +291,32 @@
     gap: 0.5rem;
 }
 
+[data-theme="dark"] .context-menu-item {
+    color: #e5e7eb;
+}
+
 .context-menu-item:hover {
     background: #f3f4f6;
+}
+
+[data-theme="dark"] .context-menu-item:hover {
+    background: #374151;
 }
 
 .context-menu-item.danger {
     color: #dc2626;
 }
 
+[data-theme="dark"] .context-menu-item.danger {
+    color: #f87171;
+}
+
 .context-menu-item.danger:hover {
     background: #fee2e2;
+}
+
+[data-theme="dark"] .context-menu-item.danger:hover {
+    background: #7f1d1d;
 }
 
 /* 파일 이동 다이얼로그 */
@@ -329,16 +351,29 @@
     overflow-y: auto;
 }
 
+[data-theme="dark"] .dialog-content {
+    background: #1f2937;
+    border: 1px solid #374151;
+}
+
 .dialog-content h3 {
     margin: 0 0 1rem 0;
     font-size: 1.25rem;
     color: #374151;
 }
 
+[data-theme="dark"] .dialog-content h3 {
+    color: #f9fafb;
+}
+
 .dialog-content p {
     margin: 0 0 1rem 0;
     color: #6b7280;
     font-size: 0.875rem;
+}
+
+[data-theme="dark"] .dialog-content p {
+    color: #d1d5db;
 }
 
 .folder-list {
@@ -349,6 +384,11 @@
     margin-bottom: 1rem;
 }
 
+[data-theme="dark"] .folder-list {
+    border-color: #374151;
+    background: #111827;
+}
+
 .folder-option {
     padding: 0.75rem;
     cursor: pointer;
@@ -357,12 +397,21 @@
     font-size: 0.875rem;
 }
 
+[data-theme="dark"] .folder-option {
+    border-bottom-color: #374151;
+    color: #e5e7eb;
+}
+
 .folder-option:last-child {
     border-bottom: none;
 }
 
 .folder-option:hover {
     background: #f9fafb;
+}
+
+[data-theme="dark"] .folder-option:hover {
+    background: #374151;
 }
 
 .dialog-actions {
@@ -382,8 +431,19 @@
     transition: all 0.2s;
 }
 
+[data-theme="dark"] .dialog-actions button {
+    background: #374151;
+    border-color: #4b5563;
+    color: #e5e7eb;
+}
+
 .dialog-actions button:hover {
     background: #f9fafb;
+}
+
+[data-theme="dark"] .dialog-actions button:hover {
+    background: #4b5563;
+    border-color: #6b7280;
 }
 
 /* 알림 */

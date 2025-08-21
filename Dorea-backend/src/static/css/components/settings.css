@@ -148,6 +148,12 @@
     z-index: 1010; /* PDF 뷰어 설정보다 높게 */
 }
 
+[data-theme="dark"] .settings-menu {
+    background: #1f2937;
+    border-color: #374151;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
 .settings-menu.hidden {
     display: none;
 }
@@ -294,6 +300,15 @@
     overflow: hidden;
 }
 
+[data-theme="dark"] .rag-sources-toggle-btn {
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+    border-color: #6b7280;
+    color: #e5e7eb;
+    box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
 .rag-sources-toggle-btn::before {
     content: '';
     position: absolute;
@@ -318,6 +333,14 @@
         0 2px 4px rgba(0, 0, 0, 0.08);
 }
 
+[data-theme="dark"] .rag-sources-toggle-btn:hover {
+    background: linear-gradient(135deg, #4b5563 0%, #6b7280 100%);
+    border-color: #9ca3af;
+    box-shadow: 
+        0 4px 8px rgba(0, 0, 0, 0.4),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
 .rag-sources-toggle-btn.active {
     background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
     border-color: #2563eb;
@@ -325,6 +348,14 @@
     box-shadow: 
         0 4px 12px rgba(59, 130, 246, 0.25),
         0 2px 6px rgba(59, 130, 246, 0.15);
+}
+
+[data-theme="dark"] .rag-sources-toggle-btn.active {
+    background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+    border-color: #60a5fa;
+    box-shadow: 
+        0 4px 12px rgba(96, 165, 250, 0.3),
+        0 2px 6px rgba(96, 165, 250, 0.2);
 }
 
 .rag-sources-toggle-btn.active:hover {
@@ -372,6 +403,12 @@
     display: none;
 }
 
+[data-theme="dark"] .rag-sources-panel {
+    background: #1f2937;
+    border-color: #374151;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
 .rag-sources-panel.show {
     opacity: 1;
     transform: translateY(0);
@@ -389,6 +426,11 @@
     align-items: center;
 }
 
+[data-theme="dark"] .rag-panel-header {
+    border-bottom-color: #374151;
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+}
+
 .rag-panel-header h4 {
     margin: 0;
     font-size: 13px;
@@ -397,6 +439,10 @@
     display: flex;
     align-items: center;
     gap: 6px;
+}
+
+[data-theme="dark"] .rag-panel-header h4 {
+    color: #f9fafb;
 }
 
 .rag-sources-count {
@@ -410,6 +456,13 @@
     box-shadow: 0 1px 2px rgba(59, 130, 246, 0.1);
     min-width: 20px;
     text-align: center;
+}
+
+[data-theme="dark"] .rag-sources-count {
+    color: #60a5fa;
+    background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+    border-color: #60a5fa;
+    box-shadow: 0 1px 2px rgba(96, 165, 250, 0.2);
 }
 
 /* 출처 목록 - 동적 크기 */
@@ -481,6 +534,10 @@
     color: #475569;
 }
 
+[data-theme="dark"] .source-type-name {
+    color: #d1d5db;
+}
+
 .source-meta {
     display: flex;
     align-items: center;
@@ -497,6 +554,11 @@
     font-weight: 500;
 }
 
+[data-theme="dark"] .source-page {
+    color: #d1d5db;
+    background: #4b5563;
+}
+
 .source-similarity {
     font-size: 9px;
     color: #3b82f6;
@@ -505,6 +567,12 @@
     border-radius: 6px;
     font-weight: 500;
     border: 1px solid #dbeafe;
+}
+
+[data-theme="dark"] .source-similarity {
+    color: #60a5fa;
+    background: #1e3a8a;
+    border-color: #60a5fa;
 }
 
 /* 출처 미리보기 텍스트 - 작게 */
@@ -518,6 +586,10 @@
     overflow: hidden;
 }
 
+[data-theme="dark"] .source-content {
+    color: #9ca3af;
+}
+
 /* RAG 출처 카드 스타일 개선 */
 .rag-sources-card {
     padding: 12px 14px;
@@ -528,11 +600,19 @@
     overflow: hidden;
 }
 
+[data-theme="dark"] .rag-sources-card {
+    border-bottom-color: #374151;
+}
+
 .rag-sources-card:hover {
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border-left: 3px solid var(--type-color, #3b82f6);
     padding-left: 11px;
     transform: translateX(2px);
+}
+
+[data-theme="dark"] .rag-sources-card:hover {
+    background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
 }
 
 .rag-sources-card:last-child {
@@ -668,6 +748,21 @@
 /* PDF 뷰어 설정 메뉴 z-index 조정 */
 .view-options-menu {
     z-index: 1015 !important; /* 채팅 설정보다 높게 */
+}
+
+[data-theme="dark"] .view-options-menu {
+    background: #1f2937 !important;
+    border-color: #374151 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .view-option-btn {
+    color: #e5e7eb !important;
+    border-bottom-color: #374151 !important;
+}
+
+[data-theme="dark"] .view-option-btn:hover {
+    background-color: #374151 !important;
 }
 
 /* 알림 위치 조정 - 더 아래쪽으로 */
