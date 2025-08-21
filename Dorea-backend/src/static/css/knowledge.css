@@ -260,6 +260,11 @@
     background: #eff6ff;
 }
 
+[data-theme="dark"] .model-option.selected {
+    background: #1e3a8a;
+    border-color: var(--primary-light);
+}
+
 .model-radio {
     position: absolute;
     top: var(--space-4);
