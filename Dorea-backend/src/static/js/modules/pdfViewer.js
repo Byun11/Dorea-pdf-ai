@@ -18,6 +18,7 @@ let viewMode = 'continuous'; // 'single' | 'dual' | 'continuous'
 let activeRenderTasks = new Map(); // 페이지별 활성 렌더링 작업
 let renderQueue = []; // 렌더링 대기열
 let isRenderingBatch = false; // 배치 렌더링 중인지 확인
+let currentRenderSession = null; // 현재 렌더링 세션 ID
 
 // 🚀 새로운 렌더링 큐 시스템 (기존 변수들과 병존)
 class RenderQueue {
@@ -608,7 +609,19 @@ async function renderDualPages(pageNum, scale) {
 
 // 개별 페이지를 뷰어에 렌더링하는 헬퍼 함수 (비동기, 논블로킹)
 async function renderSinglePageIntoViewer(pageNum, scale, viewer) {
+    const sessionId = currentRenderSession; // 작업 시작 시 세션 ID 저장
+    
     try {
+        // 페이지 가져오기 전 세션 확인
+        if (sessionId !== currentRenderSession) {
+            return;
+        }
+        
+        // pdfDoc이 null인지 확인 (파일 삭제 등으로 초기화된 경우)
+        if (!pdfDoc) {
+            return;
+        }
+        
         const page = await pdfDoc.getPage(pageNum);
         const viewport = page.getViewport({ scale });
 
@@ -663,6 +676,9 @@ async function renderSinglePageIntoViewer(pageNum, scale, viewer) {
 // 연속 스크롤 페이지 렌더링 (개선된 논블로킹 방식)
 async function renderContinuousPages(scale) {
     try {
+        // 새로운 렌더링 세션 시작 - 이전 작업들 무효화
+        currentRenderSession = Date.now() + Math.random();
+        
         const pdfContainer = document.getElementById('pdfContainer');
         if (!pdfContainer) {
             console.error('PDF 컨테이너를 찾을 수 없습니다.');
@@ -701,9 +717,15 @@ async function renderContinuousPages(scale) {
         updatePageControls();
 
         const totalPages = pdfDoc.numPages;
+        const sessionId = currentRenderSession; // 현재 세션 ID 저장
 
         let pageToRender = 1;
         function renderNextPage() {
+            // 렌더링 세션이 바뀌었으면 작업 중단
+            if (sessionId !== currentRenderSession) {
+                return;
+            }
+            
             if (pageToRender > totalPages) {
                 if (currentScale !== 1.0) {
                     applyContinuousZoom();
@@ -712,6 +734,11 @@ async function renderContinuousPages(scale) {
             }
             
             requestAnimationFrame(async () => {
+                // 한 번 더 세션 확인 (비동기 작업 직전)
+                if (sessionId !== currentRenderSession) {
+                    return;
+                }
+                
                 await renderSinglePageIntoViewer(pageToRender, scale, viewer);
                 pageToRender++;
                 renderNextPage();
@@ -2335,6 +2362,11 @@ export function getSystemStatus() {
 export function forceRenderQueueClear() {
     globalRenderQueue.clearLowPriorityTasks();
     globalDebouncer.cancelAll();
+    
+    // PDF 문서 참조도 초기화
+    pdfDoc = null;
+    currentRenderSession = null;
+    
     console.log('🧹 모든 렌더링 큐와 디바운서 강제 정리 완료');
 }
 

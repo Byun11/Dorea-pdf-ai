@@ -106,11 +106,18 @@ function setupModuleIntegration() {
     });
     
     // 파일 삭제 이벤트 처리
-    document.addEventListener('fileDeleted', async () => {
+    document.addEventListener('fileDeleted', async (event) => {
         console.log('🗑️ 파일 삭제 이벤트 처리 시작');
         
-        // PDF 뷰어 초기화
-        PDFViewer.hideViewer();
+        // PDF 뷰어 초기화 및 렌더링 세션 무효화
+        if (window.PDFViewer && typeof PDFViewer.hideViewer === 'function') {
+            PDFViewer.hideViewer();
+        }
+        
+        // 전역 렌더링 정리 (pdfViewer.js의 전역 함수 호출)
+        if (window.pdfForceClean && typeof window.pdfForceClean === 'function') {
+            window.pdfForceClean();
+        }
         
         // 세그먼트 선택 해제
         SegmentManager.clearAllSegments();
@@ -248,7 +255,6 @@ function showLandingOverlay() {
         landingOverlay.style.display = 'block';
         // 즉시 hidden 클래스 제거하여 opacity와 visibility 복구
         landingOverlay.classList.remove('hidden');
-        console.log('🏠 랜딩 오버레이 표시됨');
     }
     
     if (landingContainer) {
@@ -256,7 +262,6 @@ function showLandingOverlay() {
         landingContainer.style.display = 'flex';
         landingContainer.style.visibility = 'visible';
         landingContainer.style.opacity = '1';
-        console.log('🏠 랜딩 컨테이너 표시됨');
     }
 }
 
