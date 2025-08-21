@@ -215,6 +215,10 @@ function renderFileItem(file, level) {
                     <button onclick="event.stopPropagation(); folderTreeManager.showFileContextMenu('${file.id}', event)" 
                             class="context-menu-btn" title="파일 옵션">⋮</button>
                 ` : ''}
+                ${file.status === 'processing' ? `
+                    <button onclick="event.stopPropagation(); folderTreeManager.deleteProcessingFile('${file.id}')" 
+                            class="context-menu-btn processing-delete-btn" title="처리중인 파일 삭제" style="color: #dc2626;">🗑️</button>
+                ` : ''}
                 ${(file.status === 'waiting' && isNewUploadFile(file.id)) ? `
                     <button onclick="event.stopPropagation(); folderTreeManager.forceDeleteFile('${file.id}')" 
                             class="context-menu-btn force-delete-btn" title="대기 중인 파일 삭제" style="color: #dc2626;">✖</button>
@@ -608,6 +612,29 @@ async function forceDeleteFile(fileId) {
     }
 }
 
+// 처리중인 파일 삭제 (전용 함수)
+async function deleteProcessingFile(fileId) {
+    const file = findFileInTree(currentTree, fileId);
+    if (!file) {
+        showNotification('파일을 찾을 수 없습니다.', 'error');
+        return;
+    }
+    
+    const shouldDelete = confirm(
+        `⚠️ 주의: "${file.filename}" 파일이 현재 처리 중입니다.\n\n` +
+        `처리중인 파일을 삭제하면 오류가 발생할 수 있습니다.\n` +
+        `정말로 삭제하시겠습니까?\n\n` +
+        `권장: 처리가 완료된 후 삭제하시기 바랍니다.`
+    );
+    
+    if (!shouldDelete) {
+        return;
+    }
+    
+    // 실제 삭제 처리는 deleteFile 함수 재사용
+    await performFileDelete(fileId);
+}
+
 async function deleteFile(fileId) {
     const file = findFileInTree(currentTree, fileId);
     if (!file) {
@@ -618,6 +645,12 @@ async function deleteFile(fileId) {
     if (!confirm(`"${file.filename}" 파일을 삭제하시겠습니까?`)) {
         return;
     }
+    
+    await performFileDelete(fileId);
+}
+
+// 실제 파일 삭제 처리 (공통 함수)
+async function performFileDelete(fileId) {
     
     try {
         const response = await fetchApi(`/api/files/${fileId}`, {
@@ -734,6 +767,7 @@ window.folderTreeManager = {
     reprocessFile,
     retryFile,
     deleteFile,
+    deleteProcessingFile,
     forceDeleteFile,
     cancelProcessing,
     showFolderContextMenu,
