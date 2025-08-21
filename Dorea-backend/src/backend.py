@@ -349,7 +349,7 @@ async def register_user(request: UserRegisterRequest, db: Session = Depends(get_
     db.refresh(new_user)
     
     # JWT 토큰 생성
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(hours=24)
     access_token = create_access_token(
         data={"sub": new_user.username}, expires_delta=access_token_expires
     )
@@ -367,7 +367,7 @@ async def login_user(request: UserLoginRequest, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    access_token_expires = timedelta(minutes=30)
+    access_token_expires = timedelta(hours=24)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
