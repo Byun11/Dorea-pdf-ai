@@ -13,7 +13,9 @@
 
 ## 개요
 
-PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특정 부분을 클릭하여 AI와 대화할 수 있는 시스템입니다.
+**RAG(Retrieval Augmented Generation) 기반 PDF 문서 분석 시스템**
+
+PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특정 부분을 클릭하여 해당 내용을 바탕으로 AI와 정확한 대화를 나눌 수 있습니다.
 
 <table>
 <tr>
@@ -34,12 +36,13 @@ PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특�
 
 ## 주요 기능
 
-- PDF 레이아웃 자동 분석 (표, 이미지, 텍스트 구분)
-- 다국어 OCR 지원 (한국어, 영어, 일본어, 중국어)
-- 문서 영역 클릭으로 AI 대화 시작
-- OpenAI GPT 및 로컬 LLM(Ollama) 지원
-- 실시간 스트리밍 응답
-- 대화 기록 저장
+- **PDF 레이아웃 자동 분석**: 표, 이미지, 텍스트 영역을 자동으로 구분
+- **다국어 OCR 지원**: 한국어, 영어, 일본어, 중국어 텍스트 추출
+- **RAG 기반 문서 대화**: 문서 내용을 기반으로 정확한 AI 답변 제공
+- **인터랙티브 UI**: 문서 영역 클릭으로 해당 부분에 대한 AI 대화 시작
+- **다중 LLM 지원**: OpenAI GPT 및 로컬 LLM(Ollama) 선택 가능
+- **실시간 스트리밍**: 응답을 실시간으로 확인
+- **대화 기록 관리**: 모든 대화 내용 자동 저장
 
 ## 설치 및 실행
 
@@ -48,21 +51,60 @@ PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특�
 - 8GB+ RAM (16GB 권장)
 - 10GB+ 디스크 공간
 
-### Windows 원클릭 설치
-```cmd
+### 소스 코드 다운로드
+```bash
 git clone https://github.com/Byun11/Dorea-pdf-ai.git
 cd Dorea-pdf-ai
+```
+
+### Windows 원클릭 설치
+```cmd
+# 위의 소스 코드 다운로드 후
 Dorea.bat
 ```
 
 ### Docker Compose 실행
+
+#### 표준 배포 (로컬 빌드)
 ```bash
-# CPU 모드
+# 기본 실행
 docker compose up --build
 
-# GPU 모드 (NVIDIA GPU 필요)
+# GPU 가속 지원
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+
+# 로컬 Ollama 연동
+docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
+
+# GPU + 로컬 Ollama 연동
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up --build
 ```
+
+#### 사전 빌드 이미지 배포
+```bash
+# 기본 실행 (빌드 과정 생략)
+docker compose -f docker-compose.hub.yml up
+
+# GPU 가속 지원
+docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml up
+
+# 로컬 Ollama 연동
+docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up
+
+# GPU + 로컬 Ollama 연동
+docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up
+```
+
+#### 실행 옵션 가이드
+
+| 환경 | 실행 방식 | 특징 |
+|------|-----------|------|
+| 개발/테스트 | 로컬 빌드 | 소스 코드 수정 반영 |
+| 프로덕션/내부망 | 사전 빌드 이미지 | 빠른 배포, 안정성 |
+| GPU 환경 | GPU 옵션 추가 | 문서 처리 성능 향상 |
+| Ollama 기존 설치 | 로컬 Ollama 연동 | 기존 모델 및 설정 활용 |
+
+> **참고**: 로컬 Ollama 사용 시 호스트에서 Ollama 서비스가 11434 포트에서 실행 중이어야 합니다.
 
 ### 접속 주소
 - 메인 앱: http://localhost:8000

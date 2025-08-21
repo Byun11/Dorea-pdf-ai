@@ -61,6 +61,7 @@ node_modules/
 # Claude Code 관련 파일들
 .claude/
 .serena/
+CLAUDE.md
 
 # 목업 파일들 (개발용)
 *-mockup.html
