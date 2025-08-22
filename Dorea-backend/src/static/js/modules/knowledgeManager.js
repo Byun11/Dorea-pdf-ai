@@ -1955,6 +1955,27 @@ class KnowledgeManager {
         
         this.embeddingDownloadController = null;
     }
+
+    // 지식 관리 전용 폴더 생성 기능
+    createNewFolder() {
+        // 기존 folderTreeManager 기능 활용
+        if (window.folderTreeManager && window.folderTreeManager.createNewFolder) {
+            window.folderTreeManager.createNewFolder();
+        } else {
+            showNotification('폴더 관리 기능을 사용할 수 없습니다.', 'error');
+        }
+    }
+
+    // 지식 관리 전용 파일 업로드 기능
+    uploadFiles() {
+        // 기존 파일 입력 클릭으로 업로드 모달 실행
+        const fileInput = document.getElementById('fileInput');
+        if (fileInput) {
+            fileInput.click();
+        } else {
+            showNotification('파일 업로드 기능을 사용할 수 없습니다.', 'error');
+        }
+    }
 }
 
 // 전역 인스턴스 생성
