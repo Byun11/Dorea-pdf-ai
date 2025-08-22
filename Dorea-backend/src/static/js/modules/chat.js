@@ -611,7 +611,7 @@ async function processImageMessage(message, imageSegments) {
         }, 2));
 
         // 스트리밍 API 호출
-        const response = await fetchApi('/gpt/multi-segment-stream', {
+        const response = await fetchApi('/multi-segment-stream', {
             method: 'POST',
             body: JSON.stringify(requestBody)
         });
@@ -830,7 +830,7 @@ ${contextTexts}
         console.log(`  - 컨텍스트 길이: ${contextTexts.length}자`);
 
         // 스트리밍 API 호출
-        const response = await fetchApi('/gpt/multi-segment-stream', {
+        const response = await fetchApi('/multi-segment-stream', {
             method: 'POST',
             body: JSON.stringify(requestBody)
         });
@@ -1050,7 +1050,7 @@ async function processMessage(message, selectedSegments = null) {
         console.log('  - Request Body:', JSON.stringify(requestBody, null, 2));
 
         // 스트리밍 API 호출
-        const response = await fetchApi('/gpt/multi-segment-stream', {
+        const response = await fetchApi('/multi-segment-stream', {
             method: 'POST',
             body: JSON.stringify(requestBody)
         });
@@ -1716,7 +1716,7 @@ async function handleSegmentImagesAttachment(images, segments, message) {
         console.log(`  - Query: ${requestBody.query}`);
 
         // 스트리밍 API 호출
-        const response = await fetchApi('/gpt/multi-segment-stream', {
+        const response = await fetchApi('/multi-segment-stream', {
             method: 'POST',
             body: JSON.stringify(requestBody)
         });

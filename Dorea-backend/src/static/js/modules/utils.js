@@ -9,6 +9,13 @@ const API_URL = window.location.origin;
 export async function fetchApi(endpoint, options = {}) {
     const token = localStorage.getItem('token');
     
+    // API prefix 자동 추가 (페이지 라우트와 특별한 엔드포인트만 제외)
+    const pageEndpoints = ['/health', '/login', '/register', '/app'];
+    const needsApiPrefix = !endpoint.startsWith('/api') && 
+                          !pageEndpoints.some(page => endpoint === page || endpoint.startsWith(page + '/'));
+    
+    const finalEndpoint = needsApiPrefix ? `/api${endpoint}` : endpoint;
+    
     // 기본 헤더 설정
     const defaultHeaders = {
         'Authorization': `Bearer ${token}`
@@ -24,7 +31,7 @@ export async function fetchApi(endpoint, options = {}) {
         ...options.headers
     };
     
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(`${API_URL}${finalEndpoint}`, {
         ...options,
         headers: finalHeaders
     });
