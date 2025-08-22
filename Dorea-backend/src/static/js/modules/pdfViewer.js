@@ -837,6 +837,7 @@ function addPdfControls() {
     zoomControls.style.borderRadius = '16px'; // 둥근 모서리
     zoomControls.style.flexWrap = 'wrap'; // 줄바꿈 허용
     zoomControls.style.gap = '12px';
+    zoomControls.style.transition = 'none'; // 딜레이 제거
     zoomControls.innerHTML = `
         <div class="page-nav-group" style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
             <button class="page-btn" ${currentPage <= 1 ? 'disabled' : ''} onclick="window.pdfViewer.previousPage()">◀</button>
@@ -969,16 +970,20 @@ export async function rerenderCurrentView() {
 export function showPdfControls() {
     const controls = document.querySelector('.zoom-controls');
     if (controls) {
+        controls.style.transition = 'none'; // 딜레이 제거
         controls.style.display = 'flex';
         controls.style.visibility = 'visible';
+        controls.style.opacity = '1';
     }
 }
 
 export function hidePdfControls() {
     const controls = document.querySelector('.zoom-controls');
     if (controls) {
+        controls.style.transition = 'none'; // 딜레이 제거
         controls.style.display = 'none';
         controls.style.visibility = 'hidden';
+        controls.style.opacity = '0';
     }
 }
 

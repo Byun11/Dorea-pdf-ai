@@ -860,7 +860,23 @@ class KnowledgeManager:
             collection_name = f"user_{user_id}_documents_{embedding_provider}"
             try:
                 collection = self.chroma_client.get_collection(collection_name)
-            except ValueError: return []
+                
+                # 컬렉션 전체 데이터 개수 확인
+                total_count = collection.count()
+                logger.info(f"📊 컬렉션 '{collection_name}' 전체 문서 개수: {total_count}")
+                
+                # 해당 파일의 데이터 개수 확인
+                if file_id:
+                    file_results = collection.get(where={"file_id": file_id}, include=[])
+                    file_count = len(file_results['ids']) if file_results['ids'] else 0
+                    logger.info(f"📄 파일 '{file_id}'의 임베딩 개수: {file_count}")
+                    
+                    if file_count == 0:
+                        logger.warning(f"⚠️ 파일 '{file_id}'의 임베딩이 ChromaDB에 없습니다. 임베딩 처리가 완료되었는지 확인하세요.")
+                        
+            except ValueError: 
+                logger.error(f"❌ 컬렉션 '{collection_name}'을 찾을 수 없습니다.")
+                return []
             
             where_filter = {"file_id": file_id} if file_id else None
             logger.info(f"🔍 ChromaDB 검색 조건: collection={collection_name}, filter={where_filter}")

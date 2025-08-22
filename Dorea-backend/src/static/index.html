@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dorea - PDF 문서 기반 대화 시스템</title>
     <!-- 파비콘 추가 -->
-    <link rel="icon" href="/static/logo.png">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%233b82f6'/><stop offset='100%25' style='stop-color:%231d4ed8'/></linearGradient></defs><rect width='32' height='32' rx='8' fill='url(%23grad)'/><text x='16' y='22' text-anchor='middle' fill='white' font-family='-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif' font-size='18' font-weight='600'>D</text></svg>">
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <!-- KaTeX for LaTeX math rendering -->
@@ -291,6 +292,19 @@
     <!-- 지식 관리 컨테이너 -->
     <div class="knowledge-container" id="knowledgeContainer" style="display: none;">
         <div class="knowledge-sidebar">
+            <!-- 지식 관리 빠른 작업 액션바 -->
+            <div class="knowledge-actions">
+                <div class="knowledge-actions-title">빠른 작업</div>
+                <div class="knowledge-actions-buttons">
+                    <button class="create-folder-btn" onclick="window.knowledgeManager && window.knowledgeManager.createNewFolder ? window.knowledgeManager.createNewFolder() : window.folderTreeManager.createNewFolder()" title="새 폴더 만들기">
+                        📁 폴더
+                    </button>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()" title="파일 업로드">
+                        📄 파일
+                    </button>
+                </div>
+            </div>
+            
             <div class="sidebar-header">
                 <h2 class="sidebar-title">
                     📚 문서 트리
