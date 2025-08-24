@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 # 내부 모듈
-from database import create_database, User, UserSettings, hash_api_key
+from database import create_database, User, UserSettings, hash_api_key, SessionLocal, PDFFile
 from knowledge_routes import router as knowledge_router
 from routes.auth_routes import router as auth_router
 from routes.folder_routes import router as folder_router
@@ -30,7 +30,35 @@ OLLAMA_API_URL = os.getenv("OLLAMA_API_URL", "http://ollama:11434")
 
 # FastAPI 앱 생성
 app = FastAPI(title="PDF AI 분석 시스템")
-create_database()
+@app.on_event("startup")
+def on_startup():
+    """서버 시작 시 실행되는 이벤트"""
+    create_database()
+    
+    # 처리 중 멈춘 파일 복구
+    db = SessionLocal()
+    try:
+        stuck_files = db.query(PDFFile).filter(PDFFile.status == 'processing').all()
+        if stuck_files:
+            print(f"⚠️ 서버 시작: {len(stuck_files)}개의 멈춘 파일을 'failed' 상태로 변경합니다.")
+            for file in stuck_files:
+                file.status = 'failed'
+                file.error_message = "서버가 처리 중 재시작되었습니다."
+            db.commit()
+        else:
+            print("✅ 서버 시작: 멈춰있는 파일이 없습니다.")
+        
+        # 다음 처리 체인 시작 시도
+        from routes.file_routes import trigger_processing_chain
+        from fastapi import BackgroundTasks
+        background_tasks = BackgroundTasks()
+        trigger_processing_chain(db, background_tasks)
+
+    except Exception as e:
+        print(f"❌ 서버 시작 중 파일 상태 리셋 실패: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 # 라우터 등록
 app.include_router(knowledge_router)
