@@ -15,7 +15,7 @@ export async function verifyApiKey(apiKey, silent = false, callbacks = {}) {
     }
 
     try {
-        const response = await fetch(`${API_URL}/auth/verify-key`, {
+        const response = await fetch(`${API_URL}/api/auth/verify-key`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

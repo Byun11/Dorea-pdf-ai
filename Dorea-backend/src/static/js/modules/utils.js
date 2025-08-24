@@ -179,7 +179,7 @@ export function logout() {
 // API 키 검증
 export async function verifyApiKeyOnLoad(apiKey) {
     try {
-        const response = await fetch(`${API_URL}/auth/verify-key`, {
+        const response = await fetch(`${API_URL}/api/auth/verify-key`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ api_key: apiKey })
