@@ -1,4 +1,4 @@
-// folderTreeManager.js - Refactored for Server-Side State Management
+// folderTreeManager.js - 폴더 트리 구조 관리
 
 import { showNotification } from './utils.js';
 import * as fileManager from './fileManager.js';
@@ -8,10 +8,12 @@ let selectedFolderId = null;
 let selectedFileId = null;
 let expandedFolders = new Set();
 
-// API 호출 함수 (utils.js의 fetchApi를 사용하도록 나중에 통합 고려)
+// API 호출 함수
 async function fetchApi(endpoint, options = {}) {
     const token = localStorage.getItem('token');
-    if (!token) throw new Error('인증 토큰이 없습니다');
+    if (!token) {
+        throw new Error('인증 토큰이 없습니다');
+    }
     
     const defaultOptions = {
         headers: {
@@ -24,21 +26,21 @@ async function fetchApi(endpoint, options = {}) {
     return fetch(endpoint, { ...defaultOptions, ...options });
 }
 
-// 폴더 트리 로드 (서버가 유일한 정보 소스)
+// 폴더 트리 로드
 async function loadFolderTree() {
     try {
         const response = await fetchApi('/api/folders');
-        if (!response.ok) {
-            throw new Error(`서버 응답 오류: ${response.statusText}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            currentTree = data.data || [];
+            renderFolderTree();
+        } else {
+            console.error('폴더 트리 로드 실패:', response.statusText);
         }
-        const data = await response.json();
-        currentTree = data.data || [];
-        renderFolderTree();
     } catch (error) {
         console.error('폴더 트리 로드 오류:', error);
-        showNotification('폴더 및 파일 목록을 불러오는 데 실패했습니다.', 'error');
     } finally {
-        // 폴링 메커니즘과 연동
         if (fileManager) {
             fileManager.checkAndStartPolling();
         }
@@ -52,8 +54,9 @@ function getAllFiles() {
         for (const item of items) {
             if (item.type === 'file') {
                 files.push(item);
-            } else if (item.type === 'folder' && item.files) {
-                traverse(item.files);
+            } else if (item.type === 'folder') {
+                if (item.files) traverse(item.files);
+                if (item.subfolders) traverse(item.subfolders);
             }
         }
     }
@@ -84,7 +87,6 @@ function renderFolderTree() {
 
 // 트리 아이템 재귀 렌더링
 function renderTreeItems(items, level = 0) {
-    // 생성 시간(created_at)을 기준으로 정렬
     items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     return items.map(item => {
         if (item.type === 'folder') {
@@ -133,20 +135,15 @@ function renderFolderItem(folder, level) {
 // 파일 아이템 렌더링
 function renderFileItem(file, level) {
     const isSelected = selectedFileId === file.id;
-    const canSelect = file.status === 'completed';
-    
     const statusInfo = {
         'waiting': { icon: '⏳', text: '대기 중' },
         'processing': { icon: '🔄', text: '처리 중' },
-        'completed': { icon: '📄', text: '완료' }, // 완료 시에는 일반 파일 아이콘
+        'completed': { icon: '📄', text: '완료' },
         'failed': { icon: '❌', text: '실패' },
         'error': { icon: '❌', text: '오류' },
     };
-    
     const currentStatus = statusInfo[file.status] || { icon: '❓', text: '알 수 없음' };
-
-    // HTML 인코딩을 피하기 위해 파일 이름을 변수로 처리
-    const fileName = file.filename.replace(/'/g, "'" ).replace(/"/g, '&quot;');
+    const fileName = file.filename.replace(/'/g, "'").replace(/"/g, '&quot;');
 
     return `
         <div class="tree-item file-item ${file.status} ${isSelected ? 'selected' : ''}" 
@@ -179,14 +176,11 @@ function toggleFolder(folderId) {
     renderFolderTree();
 }
 
-// 파일 선택 (수정됨)
+// 파일 선택
 async function selectFile(fileId, fileName, fileStatus) {
     selectedFileId = fileId;
     selectedFolderId = null;
-    
-    // fileManager의 selectFile 함수 호출 (모든 인자 전달)
     await fileManager.selectFile(fileId, fileName, fileStatus);
-    
     renderFolderTree();
 }
 
@@ -194,7 +188,6 @@ async function selectFile(fileId, fileName, fileStatus) {
 async function createNewFolder() {
     const folderName = prompt('새 폴더 이름을 입력하세요:');
     if (!folderName || !folderName.trim()) return;
-
     try {
         const response = await fetchApi('/api/folders', {
             method: 'POST',
@@ -213,7 +206,7 @@ async function createNewFolder() {
     }
 }
 
-// 컨텍스트 메뉴 관련 함수들 (기존과 유사, 단순화)
+// 컨텍스트 메뉴 관련 함수들
 function showFolderContextMenu(folderId, event) {
     event.preventDefault();
     event.stopPropagation();
@@ -233,9 +226,15 @@ function showFileContextMenu(fileId, event) {
     if (!file) return;
 
     let menuItems = '';
-    if (file.status === 'failed' || file.status === 'error') {
+
+    // 상태별 메뉴 항목 구성 (처리 취소 제외)
+    if (file.status === 'completed') {
+        menuItems += `<div class="context-menu-item" onclick="fileManager.retryFile('${file.id}', '${file.filename}')">🔄 재처리</div>`;
+    } else if (file.status === 'failed' || file.status === 'error') {
         menuItems += `<div class="context-menu-item" onclick="fileManager.retryFile('${file.id}', '${file.filename}')">🔄 재시도</div>`;
     }
+
+    // 항상 표시되는 삭제 메뉴
     menuItems += `<div class="context-menu-item danger" onclick="fileManager.deleteFile('${file.id}', '${file.filename}')">🗑️ 파일 삭제</div>`;
     
     contextMenu.innerHTML = menuItems;
@@ -264,14 +263,12 @@ function hideContextMenu() {
     if (menu) menu.style.display = 'none';
 }
 
-// 트리에서 아이템 찾기 (단순화)
 function findFileInTree(fileId) {
     return getAllFiles().find(f => f.id === fileId);
 }
 
-// 폴더 삭제
 async function deleteFolder(folderId) {
-    // ... (기존 로직과 유사하게 구현)
+    showNotification('폴더 삭제는 아직 지원되지 않습니다.', 'info');
 }
 
 // 초기화
@@ -297,6 +294,6 @@ window.folderTreeManager = {
     deleteFolder,
     showFolderContextMenu,
     showFileContextMenu,
-    getAllFiles, // fileManager에서 폴링 여부 확인을 위해 노출
+    getAllFiles,
     getSelectedFolderId: () => selectedFolderId,
 };

@@ -161,9 +161,12 @@ export async function processFiles() {
         console.error('파일 업로드 중 오류 발생:', error);
         showNotification('일부 파일 업로드에 실패했습니다.', 'error');
     } finally {
-        if (window.folderTreeManager) {
-            await window.folderTreeManager.loadFolderTree();
-        }
+        // DB에 정보가 반영될 시간을 주기 위해 약간의 딜레이 후 목록 갱신
+        setTimeout(() => {
+            if (window.folderTreeManager) {
+                window.folderTreeManager.loadFolderTree();
+            }
+        }, 500); // 0.5초 지연
     }
 }
 
