@@ -35,6 +35,7 @@ async function loadFolderTree() {
             const data = await response.json();
             currentTree = data.data || [];
             renderFolderTree();
+            updateFolderStats();
         } else {
             console.error('폴더 트리 로드 실패:', response.statusText);
         }
@@ -85,9 +86,19 @@ function renderFolderTree() {
     treeContainer.innerHTML = renderTreeItems(currentTree);
 }
 
-// 트리 아이템 재귀 렌더링
+// 트리 아이템 재귀 렌더링 - Knowledge 스타일처럼 깔끔한 이름순 정렬
 function renderTreeItems(items, level = 0) {
-    items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    items.sort((a, b) => {
+        // 폴더를 파일보다 먼저
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (a.type !== 'folder' && b.type === 'folder') return 1;
+        
+        // 같은 타입끼리는 이름순 정렬 (대소문자 구분 없이)
+        const nameA = (a.name || a.filename || '').toLowerCase();
+        const nameB = (b.name || b.filename || '').toLowerCase();
+        return nameA.localeCompare(nameB);
+    });
+    
     return items.map(item => {
         if (item.type === 'folder') {
             return renderFolderItem(item, level);
@@ -105,17 +116,16 @@ function renderFolderItem(folder, level) {
     const hasChildren = children.length > 0;
 
     const folderContent = `
-        <div class="tree-item folder-item ${isSelected ? 'selected' : ''}" 
-             data-type="folder" 
-             data-id="${folder.id}"
-             style="padding-left: ${level * 20}px">
-            <div class="tree-item-content" onclick="event.stopPropagation(); folderTreeManager.toggleFolder(${folder.id})">
-                <span class="expand-icon ${hasChildren ? 'has-children' : ''} ${isExpanded ? 'expanded' : ''}">
-                    ${hasChildren ? (isExpanded ? '▼' : '▶') : ''}
-                </span>
-                <span class="folder-icon">📁</span>
-                <span class="item-name">${folder.name}</span>
-                <span class="item-count">(${folder.files.length})</span>
+        <div class="tree-item ${isSelected ? 'selected' : ''}" style="margin-left: ${level * 20}px;">
+            <div class="tree-node folder" 
+                 data-type="folder" 
+                 data-id="${folder.id}"
+                 onclick="event.stopPropagation(); folderTreeManager.toggleFolder(${folder.id})">
+                <div class="node-icon">📁</div>
+                <div class="node-content">
+                    <span class="node-name">${folder.name}</span>
+                    <span class="folder-summary">(${folder.files.length})</span>
+                </div>
             </div>
             <div class="folder-actions">
                 <button onclick="event.stopPropagation(); folderTreeManager.showFolderContextMenu(${folder.id}, event)" 
@@ -125,8 +135,10 @@ function renderFolderItem(folder, level) {
     `;
 
     let childrenContent = '';
-    if (isExpanded && hasChildren) {
+    if (hasChildren) {
+        childrenContent = `<div class="folder-children ${isExpanded ? '' : 'collapsed'}">`;
         childrenContent += renderTreeItems(children, level + 1);
+        childrenContent += `</div>`;
     }
 
     return folderContent + childrenContent;
@@ -146,15 +158,17 @@ function renderFileItem(file, level) {
     const fileName = file.filename.replace(/'/g, "'").replace(/"/g, '&quot;');
 
     return `
-        <div class="tree-item file-item ${file.status} ${isSelected ? 'selected' : ''}" 
-             data-type="file" 
-             data-id="${file.id}"
-             style="padding-left: ${level * 20 + 10}px"
-             onclick="folderTreeManager.selectFile('${file.id}', '${fileName}', '${file.status}')"
-             title="${file.filename}\n상태: ${currentStatus.text}">
-            <div class="tree-item-content">
-                <span class="file-icon">${currentStatus.icon}</span>
-                <span class="item-name">${file.filename}</span>
+        <div class="tree-item ${isSelected ? 'selected' : ''}" style="margin-left: ${level * 20}px;">
+            <div class="tree-node file" 
+                 data-type="file" 
+                 data-id="${file.id}"
+                 onclick="folderTreeManager.selectFile('${file.id}', '${fileName}', '${file.status}')"
+                 title="${file.filename}\n상태: ${currentStatus.text}">
+                <div class="node-icon">📄</div>
+                <div class="node-content">
+                    <span class="node-name">${file.filename}</span>
+                    <div class="embedding-indicator ${file.status}"></div>
+                </div>
             </div>
             <div class="file-actions">
                  <button onclick="event.stopPropagation(); folderTreeManager.showFileContextMenu('${file.id}', event)" 
@@ -174,6 +188,7 @@ function toggleFolder(folderId) {
     selectedFolderId = folderId;
     selectedFileId = null;
     renderFolderTree();
+    updateFolderStats();
 }
 
 // 파일 선택
@@ -271,6 +286,58 @@ async function deleteFolder(folderId) {
     showNotification('폴더 삭제는 아직 지원되지 않습니다.', 'info');
 }
 
+// 폴더 통계 업데이트 - Knowledge 스타일과 완전히 동일
+function updateFolderStats() {
+    const files = getAllFiles();
+    
+    // 상태별 파일 수 계산
+    const stats = {
+        total: files.length,
+        completed: files.filter(f => f.status === 'completed').length,
+        processing: files.filter(f => f.status === 'processing').length,
+        waiting: files.filter(f => f.status === 'waiting').length,
+        failed: files.filter(f => f.status === 'failed').length
+    };
+    
+    // Knowledge 페이지와 동일한 ID 사용
+    const completedSpan = document.getElementById('completedCount');
+    const processingSpan = document.getElementById('processingCount');
+    const waitingSpan = document.getElementById('noneCount'); // Knowledge에서는 'none'이 대기를 의미
+    
+    if (completedSpan) completedSpan.textContent = `${stats.completed} 완료`;
+    if (processingSpan) processingSpan.textContent = `${stats.processing} 처리중`;
+    if (waitingSpan) waitingSpan.textContent = `${stats.waiting} 대기`;
+    
+    // Knowledge 페이지처럼 모든 항목 항상 표시
+    const processingItem = processingSpan?.parentElement;
+    const waitingItem = waitingSpan?.parentElement;
+    
+    if (processingItem) {
+        processingItem.style.display = 'flex';
+    }
+    if (waitingItem) {
+        waitingItem.style.display = 'flex';
+    }
+    
+    // 실패한 파일이 있으면 동적으로 표시 추가
+    const embeddingStats = document.querySelector('.embedding-stats');
+    const existingFailedItem = embeddingStats?.querySelector('.stat-item.failed');
+    
+    if (stats.failed > 0 && !existingFailedItem) {
+        const failedItem = document.createElement('div');
+        failedItem.className = 'stat-item failed';
+        failedItem.innerHTML = `
+            <span class="stat-dot failed"></span>
+            <span>${stats.failed} 실패</span>
+        `;
+        embeddingStats?.insertBefore(failedItem, embeddingStats.lastElementChild);
+    } else if (stats.failed === 0 && existingFailedItem) {
+        existingFailedItem.remove();
+    } else if (stats.failed > 0 && existingFailedItem) {
+        existingFailedItem.querySelector('span:last-child').textContent = `${stats.failed} 실패`;
+    }
+}
+
 // 초기화
 function init() {
     loadFolderTree();
@@ -295,5 +362,6 @@ window.folderTreeManager = {
     showFolderContextMenu,
     showFileContextMenu,
     getAllFiles,
+    updateFolderStats,
     getSelectedFolderId: () => selectedFolderId,
 };

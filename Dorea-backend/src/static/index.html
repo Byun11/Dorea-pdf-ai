@@ -79,15 +79,43 @@
         <div class="sidebar">
             <div class="folder-tree-container">
                 <div class="folder-tree-header">
-                    <div class="folder-tree-title">문서 관리</div>
+                    <!-- 지식관리 스타일의 액션바 적용 -->
                     <div class="folder-tree-actions">
-                        <button class="create-folder-btn" onclick="folderTreeManager.createNewFolder()" title="새 폴더 만들기">
-                            📁 폴더
-                        </button>
-                        <button class="upload-btn" onclick="document.getElementById('fileInput').click()" title="파일 업로드">
-                            📄 파일
-                        </button>
+                        <div class="folder-tree-actions-title">빠른 작업</div>
+                        <div class="folder-tree-actions-buttons">
+                            <button class="create-folder-btn" onclick="folderTreeManager.createNewFolder()" title="새 폴더 만들기">
+                                📁 폴더
+                            </button>
+                            <button class="upload-btn" onclick="document.getElementById('fileInput').click()" title="파일 업로드">
+                                📄 파일
+                            </button>
+                        </div>
                     </div>
+                    
+                    <!-- Knowledge 스타일과 완전히 동일한 헤더 -->
+                    <div class="sidebar-header">
+                        <h2 class="sidebar-title">
+                            📚 문서 트리
+                        </h2>
+                        <div class="embedding-stats" id="embeddingStats">
+                            <div class="stat-item">
+                                <div class="stat-dot completed"></div>
+                                <span id="completedCount">0 완료</span>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-dot processing"></div>
+                                <span id="processingCount">0 처리중</span>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-dot none"></div>
+                                <span id="noneCount">0 대기</span>
+                            </div>
+                            <button class="refresh-btn" onclick="window.folderTreeManager && window.folderTreeManager.loadFolderTree()" title="진행 상태 새로고침">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+                    
                     <input type="file" id="fileInput" name="fileInput" accept=".pdf" multiple style="display: none;">
                 </div>
                 <div class="folder-tree" id="folderTree">

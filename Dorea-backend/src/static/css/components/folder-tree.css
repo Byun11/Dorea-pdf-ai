@@ -24,11 +24,14 @@
     color: #f9fafb;
 }
 
+/* 지식관리 스타일의 헤더로 업그레이드 */
 .folder-tree-header {
-    padding: var(--space-6, 1.5rem);
-    border-bottom: 1px solid var(--border-primary, #e5e7eb);
-    background: var(--bg-tertiary, #f9fafb);
+    padding: 0;
+    border-bottom: none;
+    background: transparent;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 [data-theme="dark"] .folder-tree-header {
@@ -50,26 +53,76 @@
     color: #f9fafb;
 }
 
+/* 지식관리 스타일의 액션바 - knowledge-actions 기반 */
 .folder-tree-actions {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--space-2, 0.5rem);
-    width: 100%;
+    padding: var(--space-4, 1rem) var(--space-6, 1.5rem);
+    border-bottom: 1px solid var(--border-primary, #e5e7eb);
+    background: var(--bg-secondary, #f8fafc);
+    margin-bottom: var(--space-2, 0.5rem);
 }
 
-.create-folder-btn {
-    padding: 0.5rem 1rem;
+.folder-tree-actions-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary, #6b7280);
+    margin-bottom: var(--space-3, 0.75rem);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.folder-tree-actions-buttons {
+    display: flex;
+    gap: var(--space-2, 0.5rem);
+}
+
+/* 지식관리 스타일의 액션 버튼들 */
+.folder-tree-actions .create-folder-btn,
+.folder-tree-actions .upload-btn {
+    flex: 1;
+    padding: var(--space-2, 0.5rem) var(--space-3, 0.75rem);
+    border: 1px solid var(--border-primary, #e5e7eb);
+    border-radius: var(--radius-md, 6px);
+    background: var(--bg-primary, #ffffff);
+    color: var(--text-primary, #374151);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1, 0.25rem);
+    white-space: nowrap;
+}
+
+.folder-tree-actions .create-folder-btn:hover,
+.folder-tree-actions .upload-btn:hover {
+    background: var(--bg-tertiary, #f9fafb);
+    border-color: var(--primary, #2563eb);
+    color: var(--primary, #2563eb);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+}
+
+.folder-tree-actions .create-folder-btn:active,
+.folder-tree-actions .upload-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(59, 130, 246, 0.1);
+}
+
+/* 빈 상태의 기존 버튼 스타일 유지 */
+.empty-tree .create-folder-btn {
+    padding: 0.75rem 1.5rem;
     background: #2563eb;
     color: white;
     border: none;
-    border-radius: 6px;
-    font-size: 0.875rem;
+    border-radius: 8px;
     cursor: pointer;
+    font-size: 0.875rem;
     transition: background-color 0.2s;
 }
 
-.create-folder-btn:hover {
+.empty-tree .create-folder-btn:hover {
     background: #1d4ed8;
 }
 
@@ -218,25 +271,48 @@
     color: #374151;
 }
 
-/* 파일 상태별 스타일 */
-.file-item.completed {
-    opacity: 1;
+/* 파일 상태 표시 - Knowledge 스타일과 완전히 동일 */
+.file-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 
-.file-item.processing {
-    opacity: 0.7;
-    background: #fef3c7;
+.file-indicator.completed {
+    background: var(--success);
 }
 
-.file-item.waiting {
-    opacity: 0.6;
-    background: #dbeafe;
+.file-indicator.processing {
+    background: var(--warning);
+    animation: pulse 2s infinite;
 }
 
+.file-indicator.waiting {
+    background: var(--info);
+}
+
+.file-indicator.failed {
+    background: var(--error);
+}
+
+.file-indicator.none {
+    background: var(--text-tertiary);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* 파일 아이템 기본 스타일 - 배경색 변경 제거 */
+.file-item.completed,
+.file-item.processing,
+.file-item.waiting,
 .file-item.error,
 .file-item.failed {
-    opacity: 0.8;
-    background: #fee2e2;
+    opacity: 1;
 }
 
 .file-item.cancelled {
@@ -713,4 +789,188 @@
 
 .upload-file-item:last-child {
     margin-bottom: 0;
+}
+
+/* ================================
+   Knowledge Tree Node Styling - 완전히 동일한 디자인
+   ================================ */
+
+.tree-node {
+    display: flex;
+    align-items: center;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+    width: 100%;
+    box-sizing: border-box;
+    flex-wrap: nowrap;
+    min-width: 0; /* Flexbox 축소 허용 */
+}
+
+.tree-node:hover {
+    background: var(--bg-tertiary);
+}
+
+.tree-node.selected {
+    background: #eff6ff;
+    border: 1px solid var(--primary);
+}
+
+.tree-node.folder {
+    font-weight: 600;
+    color: var(--text-primary);
+    position: relative;
+}
+
+.tree-node.file {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.node-icon {
+    margin-right: var(--space-2);
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.node-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-width: 0; /* 텍스트 overflow 처리 */
+}
+
+.node-name {
+    flex: 1;
+    margin-right: calc(var(--space-3) + 6px + var(--space-2)); /* 점 크기 + 여백 */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.folder-summary {
+    font-size: 0.75rem;
+    color: var(--text-tertiary);
+    margin-left: var(--space-1);
+}
+
+/* Embedding Indicator - 절대 위치로 고정하여 항상 같은 자리 */
+.embedding-indicator {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    flex-shrink: 0;
+}
+
+.embedding-indicator.completed {
+    background: var(--success);
+}
+
+.embedding-indicator.processing {
+    background: var(--warning);
+    animation: pulse 2s infinite;
+}
+
+.embedding-indicator.waiting {
+    background: var(--info);
+}
+
+.embedding-indicator.failed {
+    background: var(--error);
+}
+
+.embedding-indicator.none {
+    background: var(--text-tertiary);
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ================================
+   Knowledge Sidebar Styling - 완전히 동일한 헤더와 통계
+   ================================ */
+
+.sidebar-header {
+    padding: var(--space-6);
+    border-bottom: 1px solid var(--border-primary);
+    background: var(--bg-tertiary);
+}
+
+.sidebar-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: var(--space-2);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.embedding-stats {
+    display: flex;
+    gap: var(--space-3);
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+
+.stat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.stat-dot.completed { background: var(--success); }
+.stat-dot.processing { background: var(--warning); }
+.stat-dot.waiting { background: var(--info); }
+.stat-dot.failed { background: var(--error); }
+.stat-dot.none { background: var(--text-tertiary); }
+
+.refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    cursor: pointer;
+    padding: var(--space-1);
+    border-radius: var(--radius-sm);
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.refresh-btn:hover {
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    transform: translateY(-1px);
+}
+
+/* ================================
+   Folder Children Collapse Animation
+   ================================ */
+
+.folder-children {
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.folder-children.collapsed {
+    max-height: 0 !important;
 }
