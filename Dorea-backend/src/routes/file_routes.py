@@ -127,11 +127,12 @@ async def trigger_processing_chain(db: Session, background_tasks: BackgroundTask
         background_tasks.add_task(process_pdf_file, file_id=next_file.id)
 
 async def process_pdf_file(file_id: str):
-    """백그라운드에서 단일 PDF 파일을 처리하고, 완료되면 다음 체인을 호출합니다."""
+    """백그라운드에서 단일 PDF 파일을 처리하고, 완료되면 다음 체인을 호출합니다. (오류 처리 강화)"""
     db: Session = SessionLocal()
-    background_tasks = BackgroundTasks() # 새 백그라운드 태스크 인스턴스 생성
+    background_tasks = BackgroundTasks()
     db_file = None
     try:
+        # 파일을 다시 조회하여 세션에 연결
         db_file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
         if not db_file or db_file.status != 'waiting':
             print(f"⚠️ 처리 중단: 파일 {file_id}을 찾을 수 없거나 'waiting' 상태가 아닙니다.")
@@ -139,7 +140,6 @@ async def process_pdf_file(file_id: str):
 
         db_file.status = 'processing'
         db.commit()
-        db.refresh(db_file)
 
         file_dir = FILES_DIR / str(db_file.user_id) / str(db_file.id)
         original_path = file_dir / f"original_{db_file.filename}"
@@ -181,7 +181,10 @@ async def process_pdf_file(file_id: str):
 
             if segments_response and segments_response.status_code == 200:
                 segments_data = segments_response.json()
-                segments_path = file_dir / f"segments_{db_file.filename}.json"
+                
+                # 파일 이름에서 확장자 제거 후 .json 추가 (버그 수정)
+                file_stem = Path(db_file.filename).stem
+                segments_path = file_dir / f"segments_{file_stem}.json"
                 with open(segments_path, "w", encoding="utf-8") as f:
                     json.dump(segments_data, f, ensure_ascii=False, indent=2)
                 
@@ -208,14 +211,21 @@ async def process_pdf_file(file_id: str):
 
     except Exception as e:
         print(f"❌ [File ID: {file_id}] 전체 처리 오류: {e}")
-        if db_file:
-            db_file.status = "failed"
-            db_file.error_message = str(e)
-            db.commit()
+        db.rollback() # 오류 발생 시 트랜잭션 롤백
+        try:
+            # 롤백 후 새로운 상태 커밋
+            db_file = db.query(PDFFile).filter(PDFFile.id == file_id).first() # 세션에 객체 다시 연결
+            if db_file:
+                db_file.status = "failed"
+                db_file.error_message = str(e)
+                db.commit()
+        except Exception as e2:
+            print(f"❌ [File ID: {file_id}] 오류 상태 업데이트 실패: {e2}")
+            db.rollback()
     finally:
         # 현재 작업이 끝나면, 다음 작업이 있는지 확인하고 체인을 시작
         await trigger_processing_chain(db, background_tasks)
-        await background_tasks() # 등록된 다음 작업 실행
+        await background_tasks()
         db.close()
 
 # ==========================================
@@ -409,8 +419,8 @@ async def retry_file_processing(
     if not file:
         raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다")
     
-    if file.status not in ['failed', 'error']:
-        raise HTTPException(status_code=400, detail="실패했거나 오류가 발생한 파일만 재시도할 수 있습니다.")
+    if file.status not in ['failed', 'error', 'completed']:
+        raise HTTPException(status_code=400, detail="재처리가 불가능한 파일 상태입니다.")
 
     # 재처리를 위해 물리적 파일이 존재하는지 확인
     file_path = FILES_DIR / str(current_user.id) / str(file.id) / f"original_{file.filename}"

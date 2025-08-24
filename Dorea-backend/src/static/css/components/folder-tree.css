@@ -92,7 +92,7 @@
 
 
 /* 폴더 아이템 하단에 구분선 추가 */
-.tree-item.folder-item::after {
+#folderTree > .tree-item.folder-item::after {
     content: '';
     position: absolute;
     bottom: -2px;
@@ -103,7 +103,7 @@
 }
 
 /* 다크모드 폴더 구분선 */
-[data-theme="dark"] .tree-item.folder-item::after {
+[data-theme="dark"] #folderTree > .tree-item.folder-item::after {
     background: #4b5563;
 }
 
@@ -135,12 +135,18 @@
     overflow: hidden; /* 넘치는 콘텐츠 숨김 */
 }
 
-/* 평면 구조에서는 확장/축소 아이콘 불필요 */
+/* 확장/축소 아이콘 (토글 기능용) */
 .expand-icon {
     width: 16px;
     height: 16px;
-    display: none; /* 평면 구조로 변경으로 확장 아이콘 숨김 */
+    display: inline-block; /* 아이콘 보이도록 수정 */
     margin-right: 0.5rem;
+    text-align: center;
+    transition: transform 0.2s ease-in-out;
+}
+
+.expand-icon.expanded {
+    transform: rotate(90deg);
 }
 
 .folder-icon,
