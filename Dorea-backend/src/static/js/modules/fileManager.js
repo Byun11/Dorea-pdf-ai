@@ -456,7 +456,7 @@ async function processNextFile() {
         processingControllers.set(waitingFile.id, controller); // 취소용 저장
         const timeoutId = setTimeout(() => controller.abort(), 30 * 60 * 1000); // 30분
         
-        const response = await fetch(`${API_URL}/segments`, {
+        const response = await fetch(`${API_URL}/api/segments`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`

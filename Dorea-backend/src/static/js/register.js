@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 password: password
             };
 
-            const response = await fetch('/auth/register', {
+            const response = await fetch('/api/auth/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'

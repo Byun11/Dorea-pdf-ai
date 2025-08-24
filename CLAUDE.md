@@ -31,6 +31,9 @@ docker compose up --build
 # Start with GPU support
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 
+# Use local Ollama installation (requires Ollama running on host)
+docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
+
 # Run using the Windows batch installer
 ./Dorea.bat
 
