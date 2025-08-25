@@ -13,6 +13,9 @@ services:
       # PyTorch 경고 로그 억제
       - PYTHONWARNINGS=ignore::UserWarning
       - TRANSFORMERS_VERBOSITY=error
+      # 오프라인 모드 활성화 - 인터넷 다운로드 비활성화
+      - HF_HUB_OFFLINE=1
+      - TRANSFORMERS_OFFLINE=1
     networks:
       - pdf-network
     restart: unless-stopped
