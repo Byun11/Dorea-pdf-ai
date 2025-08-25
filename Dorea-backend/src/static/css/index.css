@@ -340,16 +340,20 @@ body {
     border-right: 1px solid var(--border-primary);
     background: var(--bg-tertiary);
     padding: var(--space-6);
+    /* 🔥 중앙 정렬을 위한 플렉스 컨테이너 */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
 }
 
 .pdf-viewer {
     position: relative;
-    margin: var(--space-6) auto;
+    /* 🔥 margin auto 제거 - 부모의 flex로 중앙 정렬 */
     box-shadow: var(--shadow-xl);
     background-color: white;
     border-radius: var(--radius-lg);
     overflow: auto;
-    display: inline-block;
+    /* 🔥 inline-block 제거 - 좌표 계산을 더 예측 가능하게 */
     min-width: fit-content;
     min-height: fit-content;
 }
@@ -358,7 +362,12 @@ body {
     position: absolute;
     top: 0;
     left: 0;
+    /* 🔥 오버레이가 PDF 전체를 덮도록 크기 명시 */
+    width: 100%;
+    height: 100%;
     pointer-events: none;
+    /* 🔥 디버깅을 위한 경계선 (나중에 제거 가능) */
+    /* border: 2px dashed rgba(255, 0, 0, 0.3); */
 }
 
 .segment {

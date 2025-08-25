@@ -11,212 +11,6 @@ let maxSegments = 4;
 let selectedSegmentIds = []; // 선택된 세그먼트 ID 저장
 let isImageModeActive = false; // 이미지 모드 상태
 
-// 🚀 방어적 세그먼트 업데이트 시스템 (기존 로직과 병존)
-class DefensiveSegmentUpdater {
-    constructor() {
-        this.renderingPages = new Set(); // 현재 렌더링 중인 페이지들
-        this.pendingUpdates = new Map(); // 대기 중인 업데이트들
-        this.updateQueue = []; // 업데이트 대기열
-        this.isProcessing = false;
-    }
-    
-    onPageRenderStart(pageNum) {
-        this.renderingPages.add(pageNum);
-        console.log(`🔄 페이지 ${pageNum} 렌더링 시작`);
-    }
-    
-    onPageRenderComplete(event) {
-        const { pageNum, viewport, overlayId, viewMode } = event.detail;
-        
-        // 렌더링 완료 표시
-        this.renderingPages.delete(pageNum);
-        // console.log(`✅ 페이지 ${pageNum} 렌더링 완료`);
-        
-        // 업데이트 큐에 추가
-        this.queueUpdate({
-            pageNum,
-            viewport,
-            overlayId,
-            viewMode,
-            timestamp: Date.now()
-        });
-    }
-    
-    queueUpdate(updateInfo) {
-        // 동일한 페이지의 이전 업데이트 제거
-        this.updateQueue = this.updateQueue.filter(
-            update => update.pageNum !== updateInfo.pageNum
-        );
-        
-        this.updateQueue.push(updateInfo);
-        this.processQueue();
-    }
-    
-    async processQueue() {
-        if (this.isProcessing || this.updateQueue.length === 0) return;
-        
-        this.isProcessing = true;
-        
-        while (this.updateQueue.length > 0) {
-            const update = this.updateQueue.shift();
-            
-            try {
-                await this.atomicSegmentUpdate(
-                    update.pageNum, 
-                    update.viewport, 
-                    update.overlayId, 
-                    update.viewMode
-                );
-            } catch (error) {
-                console.error(`세그먼트 업데이트 오류 (페이지 ${update.pageNum}):`, error);
-            }
-        }
-        
-        this.isProcessing = false;
-    }
-    
-    async atomicSegmentUpdate(pageNum, viewport, overlayId, viewMode) {
-        let overlay;
-        
-        if (overlayId) {
-            overlay = document.getElementById(overlayId);
-        } else {
-            const viewer = document.querySelector('.pdf-viewer');
-            overlay = viewer?.querySelector('.segment-overlay');
-        }
-        
-        if (!overlay) {
-            console.warn(`오버레이를 찾을 수 없음: ${overlayId || 'default'}`);
-            return;
-        }
-        
-        // 🛡️ 방어적 업데이트: DocumentFragment 사용으로 중단 방지
-        const fragment = document.createDocumentFragment();
-        const pageSegments = segments.filter(s => s.page_number === pageNum);
-        
-        // 기존 선택 상태 백업
-        const selectionBackup = this.backupSelectionState(overlay);
-        
-        pageSegments.forEach((segment, index) => {
-            const segmentEl = this.createSegmentElement(segment, index, pageNum, viewport);
-            
-            // 선택 상태 복원
-            this.restoreSelectionState(segmentEl, segment, pageNum, index, selectionBackup);
-            
-            fragment.appendChild(segmentEl);
-        });
-        
-        // 📍 핵심 개선: innerHTML = '' 대신 한 번에 교체
-        try {
-            overlay.innerHTML = ''; // 클리어
-            overlay.appendChild(fragment); // 한 번에 추가
-            // console.log(`✨ 페이지 ${pageNum} 세그먼트 ${pageSegments.length}개 업데이트 완료`);
-        } catch (error) {
-            console.error(`세그먼트 DOM 업데이트 실패:`, error);
-            // 기존 방식으로 fallback
-            this.fallbackUpdate(overlay, pageSegments, pageNum, viewport);
-        }
-    }
-    
-    backupSelectionState(overlay) {
-        const backup = new Map();
-        const selectedElements = overlay.querySelectorAll('.segment.selected, .segment.multi-selected');
-        
-        selectedElements.forEach(element => {
-            const segmentId = element.dataset.segmentId;
-            if (segmentId) {
-                backup.set(segmentId, {
-                    isSelected: element.classList.contains('selected'),
-                    isMultiSelected: element.classList.contains('multi-selected')
-                });
-            }
-        });
-        
-        return backup;
-    }
-    
-    createSegmentElement(segment, index, pageNum, viewport) {
-        const segmentEl = document.createElement('div');
-        segmentEl.className = 'segment';
-        segmentEl.dataset.segmentIndex = index;
-        segmentEl.dataset.segmentId = segment.id || `page${pageNum}_${index}`;
-
-        // Use transform[4] (offsetX) to fix horizontal alignment issues.
-        const offsetX = viewport.transform[4];
-
-        segmentEl.style.left = ((segment.left * viewport.scale) + offsetX) + 'px';
-        segmentEl.style.top = (segment.top * viewport.scale) + 'px';
-        segmentEl.style.width = (segment.width * viewport.scale) + 'px';
-        segmentEl.style.height = (segment.height * viewport.scale) + 'px';
-
-        const typeColors = {
-            'Text': 'rgba(59, 130, 246, 0.3)',
-            'Picture': 'rgba(16, 185, 129, 0.3)',
-            'Figure': 'rgba(16, 185, 129, 0.3)',
-            'Table': 'rgba(245, 158, 11, 0.3)',
-            'Title': 'rgba(190, 24, 93, 0.3)',
-            'Caption': 'rgba(124, 58, 237, 0.3)'
-        };
-
-        segmentEl.style.backgroundColor = typeColors[segment.type] || 'rgba(59, 130, 246, 0.3)';
-
-        segmentEl.addEventListener('click', (e) => {
-            e.stopPropagation();
-            handleSegmentClick(e, segment, segmentEl);
-        });
-
-        return segmentEl;
-    }
-    
-    restoreSelectionState(segmentEl, segment, pageNum, index, selectionBackup) {
-        const segmentId = segment.id || `page${pageNum}_${index}`;
-        
-        // 백업된 상태에서 복원
-        if (selectionBackup.has(segmentId)) {
-            const backup = selectionBackup.get(segmentId);
-            if (backup.isSelected) {
-                segmentEl.classList.add('selected');
-            } else if (backup.isMultiSelected) {
-                segmentEl.classList.add('multi-selected');
-            }
-        }
-        
-        // selectedSegmentIds 배열과 동기화
-        if (selectedSegmentIds.includes(segmentId)) {
-            const existingIndex = selectedSegments.findIndex(s => s.id === segmentId || s.segmentId === segmentId);
-            if (existingIndex === -1) {
-                selectedSegments.push({ ...segment, element: segmentEl });
-            } else {
-                selectedSegments[existingIndex].element = segmentEl;
-            }
-        }
-    }
-    
-    // 기존 방식으로 fallback
-    fallbackUpdate(overlay, pageSegments, pageNum, viewport) {
-        console.warn(`페이지 ${pageNum} 기존 방식으로 fallback 실행`);
-        overlay.innerHTML = '';
-        
-        pageSegments.forEach((segment, index) => {
-            const segmentEl = createSegmentElement(segment, index, pageNum, viewport);
-            
-            // 기존 선택 상태 복원 로직 사용
-            const segmentId = segment.id || `page${pageNum}_${index}`;
-            if (selectedSegmentIds.includes(segmentId)) {
-                if (selectedSegmentIds.length === 1) {
-                    segmentEl.classList.add('selected');
-                } else {
-                    segmentEl.classList.add('multi-selected');
-                }
-            }
-            
-            overlay.appendChild(segmentEl);
-        });
-    }
-}
-
-// 전역 방어적 업데이터 인스턴스
-const globalSegmentUpdater = new DefensiveSegmentUpdater();
 
 // 세그먼트 매니저 초기화
 export function init() {
@@ -224,27 +18,13 @@ export function init() {
     document.addEventListener('pageRendered', (event) => {
         const { viewport, pageNum, overlayId, viewMode } = event.detail;
         
-        // 새로운 방어적 시스템 사용
-        try {
-            globalSegmentUpdater.onPageRenderComplete(event);
-        } catch (error) {
-            console.error('방어적 업데이터 실패, 기존 방식 사용:', error);
-            
-            // Fallback: 기존 로직 사용
-            if ((viewMode === 'dual' || viewMode === 'continuous') && overlayId) {
-                updateSegmentOverlayById(overlayId, viewport, pageNum);
-            } else {
-                updateSegmentOverlay(viewport, pageNum);
-            }
-        }
-    });
-    
-    // 추가: 렌더링 시작 이벤트 감지 (미래 확장용)
-    document.addEventListener('pageRenderStart', (event) => {
-        try {
-            globalSegmentUpdater.onPageRenderStart(event.detail.pageNum);
-        } catch (error) {
-            console.warn('렌더링 시작 추적 실패:', error);
+        console.log(`📄 페이지 ${pageNum} 세그먼트 렌더링`);
+        
+        // 검증된 단일 렌더링 시스템 사용
+        if ((viewMode === 'dual' || viewMode === 'continuous') && overlayId) {
+            updateSegmentOverlayById(overlayId, viewport, pageNum);
+        } else {
+            updateSegmentOverlay(viewport, pageNum);
         }
     });
 }
@@ -299,13 +79,74 @@ function createSegmentElement(segment, index, pageNum, viewport) {
     segmentEl.dataset.segmentIndex = index;
     segmentEl.dataset.segmentId = segment.id || `page${pageNum}_${index}`;
 
-    // Use transform[4] (offsetX) to fix horizontal alignment issues.
-    const offsetX = viewport.transform[4];
+    // 🔍 디버깅: 세그먼트와 뷰포트 데이터 분석
+    console.log(`🔧 [DEBUG] 페이지 ${pageNum}, 세그먼트 ${index}:`, {
+        원본_세그먼트: { 
+            left: segment.left, 
+            top: segment.top, 
+            width: segment.width, 
+            height: segment.height,
+            type: segment.type
+        },
+        뷰포트_정보: { 
+            scale: viewport.scale, 
+            width: viewport.width,
+            height: viewport.height,
+            transform: viewport.transform
+        },
+        변환_매트릭스: {
+            offsetX: viewport.transform[4],
+            offsetY: viewport.transform[5], 
+            scaleX: viewport.transform[0],
+            scaleY: viewport.transform[3],
+            isFlipped: viewport.transform[3] < 0
+        }
+    });
 
-    segmentEl.style.left = ((segment.left * viewport.scale) + offsetX) + 'px';
-    segmentEl.style.top = (segment.top * viewport.scale) + 'px';
+    // 🚨 비정상 매트릭스 감지 및 수정
+    const transform = viewport.transform;
+    const isRotatedMatrix = (transform[0] === 0 && transform[3] === 0);
+    
+    console.log(`🔍 매트릭스 분석:`, {
+        isRotated: isRotatedMatrix,
+        transform: transform,
+        viewport_scale: viewport.scale
+    });
+    
+    let calculatedLeft, calculatedTop;
+    
+    // 🔥 단순화된 좌표 계산 - 복잡한 매트릭스 변환 제거
+    console.log(`🎯 단순화된 포지셔닝 적용`);
+    
+    // 항상 viewport.scale만 사용 (가장 안정적)
+    const scale = viewport.scale || 1;
+    calculatedLeft = segment.left * scale;
+    calculatedTop = segment.top * scale;
+    
+    console.log(`📐 단순 스케일링:`, {
+        scale: scale,
+        원본: { left: segment.left, top: segment.top },
+        결과: { left: calculatedLeft, top: calculatedTop }
+    });
+    
+    console.log(`📐 좌표 변환 결과:`, {
+        방식: isRotatedMatrix ? '회전_매트릭스_단순처리' : '정상_매트릭스_처리',
+        원본: { left: segment.left, top: segment.top },
+        결과: { left: calculatedLeft, top: calculatedTop }
+    });
+
+    segmentEl.style.left = calculatedLeft + 'px';
+    segmentEl.style.top = calculatedTop + 'px';
     segmentEl.style.width = (segment.width * viewport.scale) + 'px';
     segmentEl.style.height = (segment.height * viewport.scale) + 'px';
+    
+    console.log(`✅ 최종 계산 결과:`, {
+        left: calculatedLeft,
+        top: calculatedTop,
+        width: segment.width * viewport.scale,
+        height: segment.height * viewport.scale,
+        CSS적용: `left: ${calculatedLeft}px, top: ${calculatedTop}px`
+    });
 
     const typeColors = {
         'Text': 'rgba(59, 130, 246, 0.3)',
