@@ -18,13 +18,18 @@ Last Updated: 2024-08-22
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from typing import Optional
+import shutil
+from pathlib import Path
 
 # 내부 모듈 imports  
-from database import get_db, User, Folder, PDFFile, get_user_files_tree
+from database import get_db, User, Folder, PDFFile, ChatSession, get_user_files_tree
 from auth import get_current_user
 
 # Pydantic 모델 imports (backend.py에서 복사 예정)
 from pydantic import BaseModel
+
+# file_routes.py와 동일한 경로 설정
+FILES_DIR = Path("/app/DATABASE/files/users")
 
 # ==========================================
 # Pydantic 모델 정의 
@@ -188,7 +193,7 @@ async def delete_folder(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """폴더 삭제"""
+    """폴더와 그 안의 모든 파일을 함께 삭제합니다."""
     try:
         # 폴더 존재 및 권한 확인
         folder = db.query(Folder).filter(
@@ -198,21 +203,32 @@ async def delete_folder(
         if not folder:
             raise HTTPException(status_code=404, detail="폴더를 찾을 수 없습니다.")
         
-        # 하위 폴더 확인
+        # 하위 폴더가 있으면 삭제 방지 (기존 로직 유지)
         subfolders = db.query(Folder).filter(Folder.parent_id == folder_id).count()
         if subfolders > 0:
-            raise HTTPException(status_code=400, detail="하위 폴더가 있는 폴더는 삭제할 수 없습니다. 먼저 하위 폴더를 삭제하거나 이동하세요.")
+            raise HTTPException(status_code=400, detail="하위 폴더가 있는 폴더는 삭제할 수 없습니다. 먼저 하위 폴더를 비워주세요.")
         
-        # 폴더 내 파일들을 루트로 이동
-        files_in_folder = db.query(PDFFile).filter(PDFFile.folder_id == folder_id).all()
-        for file in files_in_folder:
-            file.folder_id = None
+        # 폴더 내 모든 파일 조회
+        files_to_delete = db.query(PDFFile).filter(PDFFile.folder_id == folder_id).all()
+        deleted_files_count = len(files_to_delete)
+
+        for file in files_to_delete:
+            # 1. 연결된 채팅 세션 삭제
+            db.query(ChatSession).filter(ChatSession.file_id == file.id).delete(synchronize_session=False)
+            
+            # 2. 물리적 파일 디렉토리 삭제
+            file_dir = FILES_DIR / str(current_user.id) / str(file.id)
+            if file_dir.exists():
+                shutil.rmtree(file_dir)
+            
+            # 3. 파일 DB 레코드 삭제
+            db.delete(file)
         
-        # 폴더 삭제
+        # 모든 파일 삭제 후 폴더 삭제
         db.delete(folder)
         db.commit()
         
-        return {"message": f"폴더 '{folder.name}'이 성공적으로 삭제되었습니다. 폴더 내 {len(files_in_folder)}개 파일이 루트로 이동되었습니다."}
+        return {"message": f"폴더 '{folder.name}'와(과) 내부 파일 {deleted_files_count}개가 모두 삭제되었습니다."}
         
     except HTTPException:
         raise

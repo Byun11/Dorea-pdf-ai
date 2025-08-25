@@ -10,6 +10,7 @@ class KnowledgeManager {
         this.treeData = null; // 파일 트리 데이터 캐시
         this.pollingInterval = null; // 진행률 체크용 polling
         this.embeddingDownloadController = null; // 임베딩 모델 다운로드 중단용
+        this.expandedFolders = new Set(); // 확장된 폴더 추적
         this.init();
     }
 
@@ -420,8 +421,11 @@ class KnowledgeManager {
     toggleFolder(folderElement) {
         console.log('toggleFolder 호출됨', folderElement);
         
-        const isCollapsed = folderElement.classList.contains('collapsed');
-        console.log('현재 collapsed 상태:', isCollapsed);
+        // 폴더 ID를 가져옴
+        const folderId = folderElement.dataset.id;
+        console.log('폴더 ID:', folderId);
+        
+        if (!folderId) return;
         
         const treeItem = folderElement.closest('.tree-item');
         console.log('tree-item 찾음:', treeItem);
@@ -430,18 +434,19 @@ class KnowledgeManager {
         console.log('folder-children 찾음:', folderChildren);
         
         if (folderChildren) {
-            if (isCollapsed) {
-                // 펼치기
-                console.log('펼치기 실행');
-                folderElement.classList.remove('collapsed');
-                folderChildren.classList.remove('collapsed');
-                folderChildren.style.maxHeight = folderChildren.scrollHeight + 'px';
-            } else {
+            // expandedFolders Set을 기준으로 상태 토글
+            if (this.expandedFolders.has(folderId)) {
                 // 접기
                 console.log('접기 실행');
-                folderElement.classList.add('collapsed');
+                this.expandedFolders.delete(folderId);
                 folderChildren.classList.add('collapsed');
                 folderChildren.style.maxHeight = '0px';
+            } else {
+                // 펼치기
+                console.log('펼치기 실행');
+                this.expandedFolders.add(folderId);
+                folderChildren.classList.remove('collapsed');
+                folderChildren.style.maxHeight = folderChildren.scrollHeight + 'px';
             }
         } else {
             console.log('folder-children을 찾을 수 없음');
@@ -490,7 +495,9 @@ class KnowledgeManager {
             
             // 하위 항목들을 folder-children으로 감싸기
             if ((data.children && data.children.length > 0) || (data.files && data.files.length > 0)) {
-                html += `<div class="folder-children">
+                // 폴더가 확장되어 있지 않으면 collapsed 클래스 추가
+                const isExpanded = this.expandedFolders && this.expandedFolders.has(data.name);
+                html += `<div class="folder-children ${isExpanded ? '' : 'collapsed'}">
 `;
                 
                 // 하위 폴더들 (children) 렌더링
