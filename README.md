@@ -63,8 +63,12 @@ cd Dorea-pdf-ai
 
 #### 🟢 가장 간단한 방법 (추천)
 ```bash
-# Windows 사용자
+# Windows 사용자 - 4가지 옵션 선택 가능
 Dorea.bat
+  # 1. 기본 실행 (외부망 필요)
+  # 2. GPU 가속 지원 (외부망 필요) 
+  # 3. 로컬 Ollama 연동 (내부망/폐쇄망 필수)
+  # 4. GPU + 로컬 Ollama 연동 (내부망/폐쇄망 필수)
 
 # Mac/Linux 사용자  
 docker compose up --build
@@ -97,24 +101,39 @@ docker compose down
 
 ### 다양한 실행 옵션
 
-#### GPU 가속 사용 (NVIDIA GPU 보유 시)
+#### 소스 빌드 버전 (개발자용)
 ```bash
+# 1. 기본 실행
+docker compose up --build   
+
+# 2. GPU 가속 지원 
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
-```
 
-#### 기존 Ollama 모델 활용 (이미 Ollama가 설치된 경우)
-```bash
-# 먼저 터미널에서 ollama 실행
-ollama serve
-
-# 다른 터미널에서
+# 3. 로컬 Ollama 연동
 docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
+
+# 4. GPU + 로컬 Ollama 연동
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up --build
 ```
 
-#### 사전 빌드 이미지 사용 (빠른 배포)
+#### 사전 빌드 이미지 버전 (배포용 - Dorea.bat와 동일)
 ```bash
+# 5. 기본 실행 (외부망 필요)
 docker compose -f docker-compose.hub.yml up
+
+# 6. GPU 가속 지원 (외부망 필요)
+docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml up
+
+# 7. 로컬 Ollama 연동 (내부망/폐쇄망 필수)
+docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up
+
+# 8. GPU + 로컬 Ollama 연동 (내부망/폐쇄망 필수)
+docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up
 ```
+
+> **💡 참고**: 
+> - **외부망 필요**: Docker Hub에서 이미지 다운로드
+> - **내부망/폐쇄망**: 로컬 Ollama 서버가 port 11434에서 실행 중이어야 함
 
 ### 로그 확인
 ```bash

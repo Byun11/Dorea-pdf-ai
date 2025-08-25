@@ -68,10 +68,12 @@ if !PORT_CONFLICT! == 1 (
 
 :: STEP 4: Select execution mode
 echo [4/5] Select execution mode:
-echo   1. Pre-built Image (빠른 시작 - 내부망/폐쇄망 권장)
-echo   2. Pre-built Image + GPU (GPU 가속 지원)
+echo   1. 기본 실행 (빠른 시작 - 외부망 필요)
+echo   2. GPU 가속 지원 (외부망 필요)
+echo   3. 로컬 Ollama 연동 (내부망/폐쇄망 필수)
+echo   4. GPU + 로컬 Ollama 연동 (내부망/폐쇄망 필수)
 echo.
-set /p MODE="Enter your choice [1/2]: "
+set /p MODE="Enter your choice [1-4]: "
 
 if "%MODE%"=="" set MODE=1
 
@@ -79,15 +81,30 @@ if "%MODE%"=="" set MODE=1
 echo.
 echo [5/5] Starting Dorea services...
 
-if "%MODE%"=="2" (
+if "%MODE%"=="1" (
+    echo Starting with pre-built image...
+    docker compose -f docker-compose.hub.yml up -d
+) else if "%MODE%"=="2" (
     echo Starting with pre-built image + GPU...
     docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml up -d
     if errorlevel 1 (
         echo [ERROR] Failed to start in GPU mode. Trying CPU mode...
         docker compose -f docker-compose.hub.yml up -d
     )
+) else if "%MODE%"=="3" (
+    echo Starting with pre-built image + Local Ollama...
+    echo [WARNING] 로컬 Ollama가 port 11434에서 실행 중인지 확인하세요!
+    docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up -d
+) else if "%MODE%"=="4" (
+    echo Starting with pre-built image + GPU + Local Ollama...
+    echo [WARNING] 로컬 Ollama가 port 11434에서 실행 중인지 확인하세요!
+    docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up -d
+    if errorlevel 1 (
+        echo [ERROR] Failed to start in GPU mode. Trying CPU mode with Local Ollama...
+        docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up -d
+    )
 ) else (
-    echo Starting with pre-built image...
+    echo [ERROR] Invalid choice. Using default mode...
     docker compose -f docker-compose.hub.yml up -d
 )
 
