@@ -44,95 +44,77 @@ PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특�
 - **실시간 스트리밍**: 응답을 실시간으로 확인
 - **대화 기록 관리**: 모든 대화 내용 자동 저장
 
-## 설치 및 실행
+## 🚀 빠른 설치 가이드
 
-### 시스템 요구사항
-- Docker Desktop 4.0+
-- 8GB+ RAM (16GB 권장)
-- 10GB+ 디스크 공간
+### 1단계: Docker 설치
 
-### 소스 코드 다운로드
+#### Windows 사용자
+1. [Docker Desktop](https://www.docker.com/products/docker-desktop/) 다운로드 및 설치
+2. 설치 후 재부팅
+3. Docker Desktop 실행하여 시작 완료 대기
+
+### 2단계: 소스코드 다운로드
 ```bash
 git clone https://github.com/Byun11/Dorea-pdf-ai.git
 cd Dorea-pdf-ai
 ```
 
-### Windows 원클릭 설치
-```cmd
-# 위의 소스 코드 다운로드 후
+### 3단계: 실행하기
+
+#### 🟢 가장 간단한 방법 (추천)
+```bash
+# Windows 사용자
 Dorea.bat
+
+# Mac/Linux 사용자  
+docker compose up --build
 ```
 
-### Docker Compose 실행
+> **💡 참고**: 처음 실행 시 Docker 이미지 다운로드로 5-10분 소요될 수 있습니다.
 
-#### 표준 배포 (로컬 빌드)
+#### 접속하기
+- 웹 브라우저에서 **http://localhost:8000** 접속
+- PDF 파일을 드래그해서 업로드
+- 문서 분석 완료 후 영역을 클릭해서 AI와 대화 시작!
+
+### 시스템 요구사항
+- **메모리**: 8GB 이상 (16GB 권장)
+- **디스크**: 10GB 이상의 여유 공간
+- **네트워크**: 인터넷 연결 (초기 이미지 다운로드용)
+
+### 종료하기
 ```bash
-# 1. 기본 실행
-docker compose up --build   
-
-# 2. GPU 가속 지원 
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
-
-# 3. 로컬 Ollama 연동
-docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
-
-# 4. GPU + 로컬 Ollama 연동
-docker compose -f docker-compose.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up --build
-```
-
-#### 사전 빌드 이미지 배포 (내부망 등 직접 빌드가 어려운 경우)
-```bash
-# 5. 기본 실행 (빌드 과정 생략)
-docker compose -f docker-compose.hub.yml up
-
-# 6. GPU 가속 지원
-docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml up
-
-# 7. 로컬 Ollama 연동
-docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up
-
-# 8. GPU + 로컬 Ollama 연동
-docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up
-```
-
-#### 실행 옵션 가이드
-
-| 번호 | 환경 | 명령어 | 특징 |
-|------|------|--------|------|
-| 1-4 | 개발/테스트 | 로컬 빌드 명령어 | 소스 코드 수정 반영, 실시간 개발 |
-| 5-8 | 프로덕션/내부망 | 사전 빌드 이미지 | 빠른 배포, 안정성, 네트워크 절약 |
-| 2,4,6,8 | GPU 환경 | GPU 옵션 추가 | HURIDOCS 문서 처리 성능 향상 |
-| 3,4,7,8 | 기존 Ollama | 로컬 Ollama 연동 | 기존 모델 및 설정 활용, 컨테이너 제거 |
-
-**공통 종료 명령어:**
-```bash
+# Ctrl+C 누른 후
 docker compose down
 ```
 
-> **참고**: 로컬 Ollama 사용 시(3,4,7,8번) 호스트에서 `ollama serve` 명령으로 11434 포트에서 실행 중이어야 합니다.
+---
 
-### 접속 주소
-- 메인 앱: http://localhost:8000
-- API 문서: http://localhost:8000/docs
+## 🔧 고급 설정 (선택사항)
 
-## 시스템 구조
+<details>
+<summary>GPU 가속, 로컬 모델 등 추가 옵션이 필요한 경우</summary>
 
+### 다양한 실행 옵션
+
+#### GPU 가속 사용 (NVIDIA GPU 보유 시)
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
 ```
-웹 프론트엔드 (8000) → FastAPI 백엔드 (8000) → HURIDOCS (8001) + Ollama (11434)
+
+#### 기존 Ollama 모델 활용 (이미 Ollama가 설치된 경우)
+```bash
+# 먼저 터미널에서 ollama 실행
+ollama serve
+
+# 다른 터미널에서
+docker compose -f docker-compose.yml -f docker-compose.local-ollama.yml up --build
 ```
 
-- **웹 프론트엔드**: HTML/CSS/JavaScript 기반 반응형 UI
-- **FastAPI 백엔드**: 파일 업로드, 사용자 인증, API 서버
-- **HURIDOCS**: PDF 레이아웃 분석 및 OCR 처리
-- **Ollama**: 로컬 LLM 추론 엔진
-
-## 사용 방법
-
-1. 웹 브라우저에서 http://localhost:8000 접속
-2. PDF 파일을 드래그 앤 드롭으로 업로드
-3. 자동 분석 완료 후 문서 영역 클릭
-4. AI와 대화 시작
-
+#### 사전 빌드 이미지 사용 (빠른 배포)
+```bash
+docker compose -f docker-compose.hub.yml up
+```
 
 ### 로그 확인
 ```bash
@@ -143,6 +125,21 @@ docker compose logs -f
 docker compose logs -f pdf-ai
 docker compose logs -f huridocs
 docker compose logs -f ollama
+```
+
+</details>
+
+## 🎯 사용 방법
+
+1. **파일 업로드**: PDF를 드래그해서 업로드
+2. **자동 분석**: 문서의 표, 이미지, 텍스트 영역을 자동으로 분석
+3. **AI 대화**: 원하는 영역을 클릭하면 해당 내용 기반으로 AI와 대화
+4. **대화 기록**: 모든 대화는 자동으로 저장됨
+
+## 🏗️ 시스템 구조
+
+```
+웹 브라우저 → FastAPI 백엔드 → HURIDOCS (문서분석) + Ollama (AI모델)
 ```
 
 ## 라이선스
