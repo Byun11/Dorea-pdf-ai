@@ -2,6 +2,7 @@
 
 import { showNotification } from './utils.js';
 import * as fileManager from './fileManager.js';
+import { showMoveFileDialog } from './ui.js'; // 파일 이동 UI 함수 import
 
 let currentTree = [];
 let selectedFolderId = null;
@@ -86,14 +87,11 @@ function renderFolderTree() {
     treeContainer.innerHTML = renderTreeItems(currentTree);
 }
 
-// 트리 아이템 재귀 렌더링 - Knowledge 스타일처럼 깔끔한 이름순 정렬
+// 트리 아이템 재귀 렌더링
 function renderTreeItems(items, level = 0) {
     items.sort((a, b) => {
-        // 폴더를 파일보다 먼저
         if (a.type === 'folder' && b.type !== 'folder') return -1;
         if (a.type !== 'folder' && b.type === 'folder') return 1;
-        
-        // 같은 타입끼리는 이름순 정렬 (대소문자 구분 없이)
         const nameA = (a.name || a.filename || '').toLowerCase();
         const nameB = (b.name || b.filename || '').toLowerCase();
         return nameA.localeCompare(nameB);
@@ -225,10 +223,14 @@ async function createNewFolder() {
 function showFolderContextMenu(folderId, event) {
     event.preventDefault();
     event.stopPropagation();
+
+    const folder = findFolderInTree(folderId);
+    if (!folder) return;
+
     const contextMenu = document.getElementById('contextMenu') || createContextMenu();
     contextMenu.innerHTML = `
-        <div class="context-menu-item">✏️ 이름 변경 (미구현)</div>
-        <div class="context-menu-item danger" onclick="folderTreeManager.deleteFolder(${folderId})">🗑️ 폴더 삭제</div>
+        <div class="context-menu-item" onclick="folderTreeManager.renameFolder(${folder.id}, '${folder.name}')">✏️ 이름 변경</div>
+        <div class="context-menu-item danger" onclick="folderTreeManager.deleteFolder(${folder.id}, '${folder.name}')">🗑️ 폴더 삭제</div>
     `;
     displayContextMenu(event, contextMenu);
 }
@@ -241,15 +243,14 @@ function showFileContextMenu(fileId, event) {
     if (!file) return;
 
     let menuItems = '';
+    menuItems += `<div class="context-menu-item" onclick="folderTreeManager.handleMoveFileClick('${file.id}', ${file.folder_id})">📁 폴더 이동</div>`;
 
-    // 상태별 메뉴 항목 구성 (처리 취소 제외)
     if (file.status === 'completed') {
         menuItems += `<div class="context-menu-item" onclick="fileManager.retryFile('${file.id}', '${file.filename}')">🔄 재처리</div>`;
     } else if (file.status === 'failed' || file.status === 'error') {
         menuItems += `<div class="context-menu-item" onclick="fileManager.retryFile('${file.id}', '${file.filename}')">🔄 재시도</div>`;
     }
 
-    // 항상 표시되는 삭제 메뉴
     menuItems += `<div class="context-menu-item danger" onclick="fileManager.deleteFile('${file.id}', '${file.filename}')">🗑️ 파일 삭제</div>`;
     
     contextMenu.innerHTML = menuItems;
@@ -282,15 +283,54 @@ function findFileInTree(fileId) {
     return getAllFiles().find(f => f.id === fileId);
 }
 
-async function deleteFolder(folderId) {
-    showNotification('폴더 삭제는 아직 지원되지 않습니다.', 'info');
+function findFolderInTree(folderId) {
+    let foundFolder = null;
+    function traverse(items) {
+        for (const item of items) {
+            if (foundFolder) return;
+            if (item.type === 'folder') {
+                if (item.id === folderId) {
+                    foundFolder = item;
+                    return;
+                }
+                if (item.subfolders) traverse(item.subfolders);
+            }
+        }
+    }
+    traverse(currentTree);
+    return foundFolder;
 }
 
-// 폴더 통계 업데이트 - Knowledge 스타일과 완전히 동일
+// --- 폴더 & 파일 액션 함수 ---
+async function deleteFolder(folderId, folderName) {
+    await fileManager.deleteFolder(folderId, folderName);
+}
+
+async function renameFolder(folderId, currentName) {
+    hideContextMenu();
+    const newName = prompt("새 폴더 이름을 입력하세요:", currentName);
+
+    if (newName && newName.trim() && newName.trim() !== currentName) {
+        const success = await fileManager.renameFolder(folderId, newName.trim());
+        if (success) {
+            await loadFolderTree();
+        }
+    }
+}
+
+function handleMoveFileClick(fileId, folderId) {
+    hideContextMenu();
+    showMoveFileDialog(fileId, folderId, currentTree, async (newFolderId) => {
+        const success = await fileManager.moveFile(fileId, newFolderId);
+        if (success) {
+            await loadFolderTree();
+        }
+    });
+}
+
+// 폴더 통계 업데이트
 function updateFolderStats() {
     const files = getAllFiles();
-    
-    // 상태별 파일 수 계산
     const stats = {
         total: files.length,
         completed: files.filter(f => f.status === 'completed').length,
@@ -299,27 +339,20 @@ function updateFolderStats() {
         failed: files.filter(f => f.status === 'failed').length
     };
     
-    // Knowledge 페이지와 동일한 ID 사용
     const completedSpan = document.getElementById('completedCount');
     const processingSpan = document.getElementById('processingCount');
-    const waitingSpan = document.getElementById('noneCount'); // Knowledge에서는 'none'이 대기를 의미
+    const waitingSpan = document.getElementById('noneCount');
     
     if (completedSpan) completedSpan.textContent = `${stats.completed} 완료`;
     if (processingSpan) processingSpan.textContent = `${stats.processing} 처리중`;
     if (waitingSpan) waitingSpan.textContent = `${stats.waiting} 대기`;
     
-    // Knowledge 페이지처럼 모든 항목 항상 표시
     const processingItem = processingSpan?.parentElement;
     const waitingItem = waitingSpan?.parentElement;
     
-    if (processingItem) {
-        processingItem.style.display = 'flex';
-    }
-    if (waitingItem) {
-        waitingItem.style.display = 'flex';
-    }
+    if (processingItem) processingItem.style.display = 'flex';
+    if (waitingItem) waitingItem.style.display = 'flex';
     
-    // 실패한 파일이 있으면 동적으로 표시 추가
     const embeddingStats = document.querySelector('.embedding-stats');
     const existingFailedItem = embeddingStats?.querySelector('.stat-item.failed');
     
@@ -363,5 +396,7 @@ window.folderTreeManager = {
     showFileContextMenu,
     getAllFiles,
     updateFolderStats,
+    renameFolder,
+    handleMoveFileClick, // 이동 처리 함수 추가
     getSelectedFolderId: () => selectedFolderId,
 };

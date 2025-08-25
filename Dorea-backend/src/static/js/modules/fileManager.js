@@ -242,6 +242,78 @@ export async function deleteFile(fileId, fileName) {
     }
 }
 
+export async function deleteFolder(folderId, folderName) {
+    // 백엔드 로직: 폴더 안의 파일은 루트로 이동됩니다.
+    if (!confirm(`'${folderName}' 폴더를 삭제하시겠습니까?
+폴더 안의 모든 파일은 루트로 이동됩니다.`)) {
+        return;
+    }
+    try {
+        const response = await fetchApi(`/api/folders/${folderId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showNotification(`'${folderName}' 폴더가 삭제되었습니다.`, 'success');
+            if (window.folderTreeManager) {
+                await window.folderTreeManager.loadFolderTree();
+            }
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || '폴더 삭제 실패');
+        }
+    } catch (error) {
+        console.error('폴더 삭제 오류:', error);
+        showNotification(`폴더 삭제 실패: ${error.message}`, 'error');
+    }
+}
+
+export async function renameFolder(folderId, newName) {
+    try {
+        // 백엔드는 이 작업을 위해 PUT /api/folders/{folder_id}를 사용합니다.
+        const response = await fetchApi(`/api/folders/${folderId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            // 백엔드 모델(FolderUpdateRequest)은 name과 description을 받습니다.
+            body: JSON.stringify({ name: newName, description: '' })
+        });
+
+        if (response.ok) {
+            showNotification('폴더 이름이 변경되었습니다.', 'success');
+            return true;
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || '폴더 이름 변경 실패');
+        }
+    } catch (error) {
+        console.error('폴더 이름 변경 오류:', error);
+        showNotification(`이름 변경 실패: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+export async function moveFile(fileId, newFolderId) {
+    try {
+        const response = await fetchApi(`/api/files/${fileId}/move`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ new_folder_id: newFolderId })
+        });
+
+        if (response.ok) {
+            showNotification('파일이 이동되었습니다.', 'success');
+            return true;
+        } else {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || '파일 이동에 실패했습니다.');
+        }
+    } catch (error) {
+        console.error('파일 이동 오류:', error);
+        showNotification(`파일 이동 실패: ${error.message}`, 'error');
+        return false;
+    }
+}
+
 export async function retryFile(fileId, fileName) {
     console.log(`🔄 파일 재처리 요청: ${fileName} (ID: ${fileId})`);
     try {

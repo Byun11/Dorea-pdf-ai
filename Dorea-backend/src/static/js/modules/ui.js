@@ -707,3 +707,83 @@ async function createFolderFromUpload() {
 
 // 글로벌 함수로 노출
 window.createFolderFromUpload = createFolderFromUpload;
+
+// ============================================
+// 파일 이동 다이얼로그
+// ============================================
+
+export function showMoveFileDialog(fileId, currentFolderId, folderTree, onConfirm) {
+    // 기존 다이얼로그 제거
+    const existingDialog = document.getElementById('move-file-dialog');
+    if (existingDialog) {
+        existingDialog.remove();
+    }
+
+    // 오버레이 생성
+    const overlay = document.createElement('div');
+    overlay.id = 'move-file-dialog';
+    overlay.className = 'dialog-overlay';
+
+    // 다이얼로그 컨텐츠 생성
+    const dialogContent = document.createElement('div');
+    dialogContent.className = 'dialog-content';
+
+    dialogContent.innerHTML = '<h3>이동할 폴더 선택</h3>';
+
+    const list = document.createElement('ul');
+    list.className = 'folder-select-list'; // CSS 클래스 사용
+
+    // 루트 폴더 옵션
+    if (currentFolderId !== null) {
+        const rootItem = document.createElement('li');
+        rootItem.innerHTML = '📁 (최상위 폴더)';
+        rootItem.onclick = () => {
+            onConfirm(null);
+            overlay.remove();
+        };
+        list.appendChild(rootItem);
+    }
+
+    // 폴더 목록 생성 함수
+    function createFolderList(folders, level = 0) {
+        folders.forEach(folder => {
+            if (folder.type === 'folder') { // 폴더만 표시
+                if (folder.id !== currentFolderId) {
+                    const item = document.createElement('li');
+                    item.innerHTML = `<span style="padding-left: ${level * 20}px;">📁 ${folder.name}</span>`;
+                    item.onclick = () => {
+                        onConfirm(folder.id);
+                        overlay.remove();
+                    };
+                    list.appendChild(item);
+                }
+                // 하위 폴더 탐색
+                if (folder.subfolders && folder.subfolders.length > 0) {
+                    createFolderList(folder.subfolders, level + 1);
+                }
+            }
+        });
+    }
+
+    createFolderList(folderTree);
+    dialogContent.appendChild(list);
+
+    // 액션 버튼
+    const actions = document.createElement('div');
+    actions.className = 'dialog-actions';
+    const cancelButton = document.createElement('button');
+    cancelButton.textContent = '취소';
+    cancelButton.onclick = () => overlay.remove();
+    actions.appendChild(cancelButton);
+
+    dialogContent.appendChild(actions);
+    overlay.appendChild(dialogContent);
+    document.body.appendChild(overlay);
+
+    // 다이얼로그 외부 클릭 시 닫기
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+}
