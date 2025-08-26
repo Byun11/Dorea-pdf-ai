@@ -142,8 +142,11 @@ function createSegmentElement(segment, index, pageNum, viewport) {
         결과: { left: calculatedLeft, top: calculatedTop }
     });
 
+    // 🔄 Y좌표만 상하반전 (나머지 로직은 완벽하므로 건드리지 않음)
+    const flippedTop = viewport.height - calculatedTop - (segment.height * Math.abs(scaleY));
+    
     segmentEl.style.left = calculatedLeft + 'px';
-    segmentEl.style.top = calculatedTop + 'px';
+    segmentEl.style.top = flippedTop + 'px';
     segmentEl.style.width = (segment.width * Math.abs(scaleX)) + 'px';
     segmentEl.style.height = (segment.height * Math.abs(scaleY)) + 'px';
     
