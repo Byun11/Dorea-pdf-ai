@@ -18,7 +18,6 @@ export function init() {
     document.addEventListener('pageRendered', (event) => {
         const { viewport, pageNum, overlayId, viewMode } = event.detail;
         
-        console.log(`📄 페이지 ${pageNum} 세그먼트 렌더링`);
         
         // 검증된 단일 렌더링 시스템 사용
         if ((viewMode === 'dual' || viewMode === 'continuous') && overlayId) {
@@ -79,44 +78,14 @@ function createSegmentElement(segment, index, pageNum, viewport) {
     segmentEl.dataset.segmentIndex = index;
     segmentEl.dataset.segmentId = segment.id || `page${pageNum}_${index}`;
 
-    // 🔍 디버깅: 세그먼트와 뷰포트 데이터 분석
-    console.log(`🔧 [DEBUG] 페이지 ${pageNum}, 세그먼트 ${index}:`, {
-        원본_세그먼트: { 
-            left: segment.left, 
-            top: segment.top, 
-            width: segment.width, 
-            height: segment.height,
-            type: segment.type
-        },
-        뷰포트_정보: { 
-            scale: viewport.scale, 
-            width: viewport.width,
-            height: viewport.height,
-            transform: viewport.transform
-        },
-        변환_매트릭스: {
-            offsetX: viewport.transform[4],
-            offsetY: viewport.transform[5], 
-            scaleX: viewport.transform[0],
-            scaleY: viewport.transform[3],
-            isFlipped: viewport.transform[3] < 0
-        }
-    });
 
     // 🚨 비정상 매트릭스 감지 및 수정
     const transform = viewport.transform;
     const isRotatedMatrix = (transform[0] === 0 && transform[3] === 0);
     
-    console.log(`🔍 매트릭스 분석:`, {
-        isRotated: isRotatedMatrix,
-        transform: transform,
-        viewport_scale: viewport.scale
-    });
-    
     let calculatedLeft, calculatedTop;
     
     // 🎯 근본 해결: PDF 좌표 → 화면 픽셀 변환 (Y축 반전 고려)
-    console.log(`🔧 PDF 좌표계 → 화면 좌표계 변환`);
     
     // PDF.js transform matrix 사용 (PDF 포인트 → 화면 픽셀)
     const [scaleX, , , scaleY, offsetX, offsetY] = viewport.transform;
@@ -129,18 +98,6 @@ function createSegmentElement(segment, index, pageNum, viewport) {
         // 정상 Y축
         calculatedTop = segment.top * scaleY + offsetY;
     }
-    
-    console.log(`📐 좌표 변환:`, {
-        transform_matrix: { scaleX, scaleY, offsetX, offsetY },
-        원본: { left: segment.left, top: segment.top },
-        결과: { left: calculatedLeft, top: calculatedTop }
-    });
-    
-    console.log(`📐 좌표 변환 결과:`, {
-        방식: isRotatedMatrix ? '회전_매트릭스_단순처리' : '정상_매트릭스_처리',
-        원본: { left: segment.left, top: segment.top },
-        결과: { left: calculatedLeft, top: calculatedTop }
-    });
 
     // 🔄 Y좌표만 상하반전 (나머지 로직은 완벽하므로 건드리지 않음)
     const flippedTop = viewport.height - calculatedTop - (segment.height * Math.abs(scaleY));
@@ -149,14 +106,6 @@ function createSegmentElement(segment, index, pageNum, viewport) {
     segmentEl.style.top = flippedTop + 'px';
     segmentEl.style.width = (segment.width * Math.abs(scaleX)) + 'px';
     segmentEl.style.height = (segment.height * Math.abs(scaleY)) + 'px';
-    
-    console.log(`✅ 최종 계산 결과:`, {
-        left: calculatedLeft,
-        top: calculatedTop,
-        width: segment.width * viewport.scale,
-        height: segment.height * viewport.scale,
-        CSS적용: `left: ${calculatedLeft}px, top: ${calculatedTop}px`
-    });
 
     const typeColors = {
         'Text': 'rgba(59, 130, 246, 0.3)',
@@ -320,7 +269,6 @@ function createSegmentPreviewImage(segment, previewElement) {
         // 해당 페이지의 캔버스 찾기
         const pageCanvas = document.querySelector(`canvas[data-page-number="${segment.page_number}"]`);
         if (!pageCanvas) {
-            console.warn(`페이지 ${segment.page_number}의 캔버스를 찾을 수 없습니다.`);
             previewElement.textContent = `페이지 ${segment.page_number} 이미지 영역`;
             return;
         }
@@ -345,7 +293,6 @@ function createSegmentPreviewImage(segment, previewElement) {
         // 좌표 유효성 검사
         if (x < 0 || y < 0 || width <= 0 || height <= 0 || 
             x + width > canvasWidth || y + height > canvasHeight) {
-            console.warn('세그먼트 좌표가 캔버스 범위를 벗어남:', { x, y, width, height, canvasWidth, canvasHeight });
             previewElement.textContent = `페이지 ${segment.page_number} 이미지 영역`;
             return;
         }
@@ -392,15 +339,7 @@ function createSegmentPreviewImage(segment, previewElement) {
         `;
         previewElement.appendChild(img);
         
-        console.log('이미지 미리보기 생성 완료:', { 
-            pageNumber: segment.page_number, 
-            type: segment.type,
-            coordinates: { x, y, width, height },
-            previewSize: { previewWidth, previewHeight }
-        });
-        
     } catch (error) {
-        console.error('이미지 미리보기 생성 실패:', error);
         previewElement.textContent = `페이지 ${segment.page_number} 이미지 영역`;
     }
 }
@@ -430,7 +369,6 @@ function createSmallPreviewImage(segment, size) {
         
         return tempCanvas.toDataURL();
     } catch (error) {
-        console.warn('작은 미리보기 이미지 생성 실패:', error);
         return null;
     }
 }
@@ -522,8 +460,6 @@ export function toggleImageMode() {
     isImageModeActive = !isImageModeActive;
     const toggleBtn = document.getElementById('imageToggleBtn');
     
-    console.log('🔄 [DEBUG] 이미지 모드 토글:', isImageModeActive);
-    
     if (toggleBtn) {
         if (isImageModeActive) {
             toggleBtn.classList.add('active');
@@ -539,7 +475,6 @@ export function toggleImageMode() {
 
 // 이미지 모드 상태 확인
 export function getImageModeStatus() {
-    console.log('🔍 [DEBUG] getImageModeStatus 호출:', isImageModeActive);
     return isImageModeActive;
 }
 
@@ -614,7 +549,6 @@ async function handleImageAction() {
         showNotification(`${validImages.length}개 영역이 이미지로 첨부되었습니다.`, 'success');
         
     } catch (error) {
-        console.error('이미지 생성 중 오류:', error);
         showNotification('이미지 생성 중 오류가 발생했습니다.', 'error');
     }
 }
