@@ -115,16 +115,23 @@ function createSegmentElement(segment, index, pageNum, viewport) {
     
     let calculatedLeft, calculatedTop;
     
-    // 🔥 단순화된 좌표 계산 - 복잡한 매트릭스 변환 제거
-    console.log(`🎯 단순화된 포지셔닝 적용`);
+    // 🎯 근본 해결: PDF 좌표 → 화면 픽셀 변환 (Y축 반전 고려)
+    console.log(`🔧 PDF 좌표계 → 화면 좌표계 변환`);
     
-    // 항상 viewport.scale만 사용 (가장 안정적)
-    const scale = viewport.scale || 1;
-    calculatedLeft = segment.left * scale;
-    calculatedTop = segment.top * scale;
+    // PDF.js transform matrix 사용 (PDF 포인트 → 화면 픽셀)
+    const [scaleX, , , scaleY, offsetX, offsetY] = viewport.transform;
+    calculatedLeft = segment.left * scaleX + offsetX;
     
-    console.log(`📐 단순 스케일링:`, {
-        scale: scale,
+    if (scaleY < 0) {
+        // Y축이 뒤집힌 경우: Y좌표 반전 처리
+        calculatedTop = (segment.top + segment.height) * scaleY + offsetY;
+    } else {
+        // 정상 Y축
+        calculatedTop = segment.top * scaleY + offsetY;
+    }
+    
+    console.log(`📐 좌표 변환:`, {
+        transform_matrix: { scaleX, scaleY, offsetX, offsetY },
         원본: { left: segment.left, top: segment.top },
         결과: { left: calculatedLeft, top: calculatedTop }
     });
@@ -137,8 +144,8 @@ function createSegmentElement(segment, index, pageNum, viewport) {
 
     segmentEl.style.left = calculatedLeft + 'px';
     segmentEl.style.top = calculatedTop + 'px';
-    segmentEl.style.width = (segment.width * viewport.scale) + 'px';
-    segmentEl.style.height = (segment.height * viewport.scale) + 'px';
+    segmentEl.style.width = (segment.width * Math.abs(scaleX)) + 'px';
+    segmentEl.style.height = (segment.height * Math.abs(scaleY)) + 'px';
     
     console.log(`✅ 최종 계산 결과:`, {
         left: calculatedLeft,
