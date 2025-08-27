@@ -17,6 +17,11 @@
 
 PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특정 부분을 클릭하여 해당 내용을 바탕으로 AI와 정확한 대화를 나눌 수 있습니다.
 
+### 시연 영상
+https://youtu.be/xEo9D5tuc4E
+
+*음성: Generated using ElevenLabs (https://elevenlabs.io)*
+
 <table>
 <tr>
 <td width="50%" align="center">
