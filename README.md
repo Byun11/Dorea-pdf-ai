@@ -17,10 +17,6 @@
 
 PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특정 부분을 클릭하여 해당 내용을 바탕으로 AI와 정확한 대화를 나눌 수 있습니다.
 
-### 시연 영상
-[![시연 영상](https://img.youtube.com/vi/xEo9D5tuc4E/0.jpg)](https://youtu.be/xEo9D5tuc4E)
-*음성: Generated using ElevenLabs (https://elevenlabs.io)*
-
 <table>
 <tr>
 <td width="50%" align="center">
@@ -159,11 +155,11 @@ docker compose logs -f ollama
 3. **AI 대화**: 원하는 영역을 클릭하면 해당 내용 기반으로 AI와 대화
 4. **대화 기록**: 모든 대화는 자동으로 저장됨
 
-## 🏗️ 시스템 구조
+### 시연 영상
 
-```
-웹 브라우저 → FastAPI 백엔드 → HURIDOCS (문서분석) + Ollama (AI모델)
-```
+[![시연 영상](https://img.youtube.com/vi/xEo9D5tuc4E/0.jpg)](https://youtu.be/xEo9D5tuc4E)
+
+*음성: Generated using ElevenLabs (https://elevenlabs.io)*
 
 ## 라이선스
 
