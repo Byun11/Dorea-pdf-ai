@@ -11,11 +11,27 @@
   </p>
 </div>
 
+## Language / 언어
+- [한국어 🇰🇷](#한국어-버전) (Korean Version)
+- [English 🇺🇸](README_EN.md) (English Version)
+
+## 한국어 버전
+
 ## 개요
 
 **RAG(Retrieval Augmented Generation) 기반 PDF 문서 분석 시스템**
 
 PDF를 업로드하면 자동으로 레이아웃을 분석하고, 문서의 특정 부분을 클릭하여 해당 내용을 바탕으로 AI와 정확한 대화를 나눌 수 있습니다.
+
+<div align="center">
+
+### 시연 영상
+
+[![시연 영상](https://img.youtube.com/vi/xEo9D5tuc4E/0.jpg)](https://youtu.be/xEo9D5tuc4E)
+
+*음성: Generated using ElevenLabs (https://elevenlabs.io)*
+
+</div>
 
 <table>
 <tr>
@@ -181,6 +197,11 @@ Apache License 2.0
 
 - 버그 리포트: [GitHub Issues](https://github.com/Byun11/Dorea-pdf-ai/issues)
 - 이메일: [9722jayon@gmail.com](mailto:9722jayon@gmail.com)
+
+## 개발자
+
+- **변재연**: [9722jayon@gmail.com](mailto:9722jayon@gmail.com)
+- **이용**: [ryonglee@kisti.re.kr](mailto:ryonglee@kisti.re.kr)
 
 ---
 
