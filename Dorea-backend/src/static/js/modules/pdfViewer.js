@@ -864,6 +864,7 @@ function addPdfControls() {
                 <button class="zoom-btn fit-btn" onclick="window.pdfViewer.fitToWidth()" title="너비 맞춤">↔</button>
                 <button class="zoom-btn fit-btn" onclick="window.pdfViewer.fitToHeight()" title="높이 맞춤">↕</button>
                 <button class="zoom-btn capture-btn" onclick="window.pdfViewer.captureCurrentView()" title="영역 선택 캡처">✂️</button>
+                <button class="zoom-btn select-all-btn" onclick="window.pdfViewer.selectAllSegmentsOnCurrentPage()" title="현재 페이지 모든 세그먼트 선택">📄</button>
                 <div class="view-settings-dropdown" style="position: relative;">
                     <button class="zoom-btn settings-btn" id="settingsBtn" onclick="window.pdfViewer.toggleViewSettings()" title="뷰 설정">⚙️</button>
                     <div class="view-options-menu" id="viewOptionsMenu" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1002; min-width: 120px; margin-top: 4px;">
@@ -2381,6 +2382,55 @@ export function forceRenderQueueClear() {
     console.log('🧹 모든 렌더링 큐와 디바운서 강제 정리 완료');
 }
 
+
+// 현재 페이지의 모든 세그먼트 선택
+export function selectAllSegmentsOnCurrentPage() {
+    if (!window.segmentManager) {
+        console.warn('SegmentManager not available');
+        return;
+    }
+    
+    try {
+        // 현재 페이지 번호 가져오기
+        const currentPageNum = getCurrentPage();
+        
+        // 현재 페이지의 모든 세그먼트 찾기
+        const segments = window.segmentManager.getSegments();
+        const currentPageSegments = segments.filter(segment => segment.page_number === currentPageNum);
+        
+        if (currentPageSegments.length === 0) {
+            window.Utils?.showNotification('현재 페이지에 선택 가능한 세그먼트가 없습니다.', 'warning');
+            return;
+        }
+        
+        // 기존 선택 해제
+        if (window.segmentManager.clearAllSegments) {
+            window.segmentManager.clearAllSegments();
+        }
+        
+        // 현재 페이지의 모든 세그먼트 DOM 요소 찾아서 클릭 이벤트 시뮬레이션
+        currentPageSegments.forEach((segment, index) => {
+            const segmentId = segment.id || `page${currentPageNum}_${index}`;
+            const segmentElement = document.querySelector(`[data-segment-id="${segmentId}"]`);
+            
+            if (segmentElement) {
+                // Ctrl 키를 누른 상태로 클릭 시뮬레이션 (다중 선택)
+                const clickEvent = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    ctrlKey: index > 0 // 첫 번째는 단일 선택, 나머지는 다중 선택
+                });
+                segmentElement.dispatchEvent(clickEvent);
+            }
+        });
+        
+        window.Utils?.showNotification(`페이지 ${currentPageNum}의 ${currentPageSegments.length}개 영역을 선택했습니다.`, 'success');
+        
+    } catch (error) {
+        console.error('페이지 전체 세그먼트 선택 중 오류:', error);
+        window.Utils?.showNotification('페이지 전체 선택 중 오류가 발생했습니다.', 'error');
+    }
+}
 
 // 전역 접근용 (디버깅)
 window.pdfSystemStatus = getSystemStatus;

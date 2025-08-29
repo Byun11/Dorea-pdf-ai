@@ -468,9 +468,15 @@ function initializeWelcomeMessage() {
 // 메시지 전송
 export async function sendMessage(customMessage = null) {
     const input = document.getElementById('chatInput');
-    const message = customMessage || (input ? input.value.trim() : '');
+    let message = customMessage || (input ? input.value.trim() : '');
     
     if (!message || isTyping) return;
+
+    // 🔸 개조식 모드 체크 및 프롬프트 추가
+    const bulletFormatToggle = document.getElementById('bulletFormatToggle');
+    if (bulletFormatToggle && bulletFormatToggle.checked) {
+        message = message + '\n\n[답변을 개조식으로 핵심만 간단히 정리해서 응답해주세요. 불필요한 서론이나 설명 없이 • 기호를 사용해서 요점만 나열해주세요.]';
+    }
 
     if (!currentChatSession) {
         showNotification('먼저 파일을 선택해주세요.', 'warning');

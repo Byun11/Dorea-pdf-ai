@@ -319,6 +319,7 @@ window.segmentManager = {
     removeSegment: SegmentManager.removeSegment,
     quickAction: SegmentManager.quickAction,
     getSelectedSegments: SegmentManager.getSelectedSegments,
+    getSegments: SegmentManager.getSegments,
     clearAllSegments: SegmentManager.clearAllSegments,
     getImageModeStatus: SegmentManager.getImageModeStatus,
     toggleImageMode: SegmentManager.toggleImageMode
@@ -363,7 +364,8 @@ window.pdfViewer = {
     setViewMode: PDFViewer.setViewMode,
     toggleSegments: PDFViewer.toggleSegments,
     toggleViewSettings: PDFViewer.toggleViewSettings,
-    updateZoomControlsPosition: PDFViewer.updateZoomControlsPosition
+    updateZoomControlsPosition: PDFViewer.updateZoomControlsPosition,
+    selectAllSegmentsOnCurrentPage: PDFViewer.selectAllSegmentsOnCurrentPage
 };
 
 // Ollama 관련 함수들 (일부는 직접 호출됨)
@@ -786,6 +788,7 @@ window.segmentManager = {
     removeSegment: SegmentManager.removeSegment,
     quickAction: SegmentManager.quickAction,
     getSelectedSegments: SegmentManager.getSelectedSegments,
+    getSegments: SegmentManager.getSegments,
     clearAllSegments: SegmentManager.clearAllSegments,
     getImageModeStatus: SegmentManager.getImageModeStatus,
     toggleImageMode: SegmentManager.toggleImageMode
@@ -830,7 +833,8 @@ window.pdfViewer = {
     setViewMode: PDFViewer.setViewMode,
     toggleSegments: PDFViewer.toggleSegments,
     toggleViewSettings: PDFViewer.toggleViewSettings,
-    updateZoomControlsPosition: PDFViewer.updateZoomControlsPosition
+    updateZoomControlsPosition: PDFViewer.updateZoomControlsPosition,
+    selectAllSegmentsOnCurrentPage: PDFViewer.selectAllSegmentsOnCurrentPage
 };
 
 window.ollamaManager = {

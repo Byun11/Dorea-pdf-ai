@@ -7,7 +7,7 @@ import { showNotification } from './utils.js';
 // 세그먼트 관리 변수
 let segments = [];
 let selectedSegments = [];
-let maxSegments = 4;
+let maxSegments = 999; // 사실상 무제한
 let selectedSegmentIds = []; // 선택된 세그먼트 ID 저장
 let isImageModeActive = false; // 이미지 모드 상태
 
@@ -522,12 +522,12 @@ export function toggleImageMode() {
     if (toggleBtn) {
         if (isImageModeActive) {
             toggleBtn.classList.add('active');
-            toggleBtn.title = '이미지 모드 활성화됨: 채팅 전송 시 이미지로 함께 전송';
-            showNotification('이미지 모드가 켜졌습니다. 이제 채팅 전송 시 선택된 영역이 이미지로 함께 전송됩니다.', 'info');
+            toggleBtn.title = '정밀 모드 활성화됨: 모든 영역을 고화질 이미지로 정확하게 분석';
+            showNotification('정밀 모드가 켜졌습니다. 이제 채팅 전송 시 선택된 영역이 고화질 이미지로 정확하게 분석됩니다.', 'info');
         } else {
             toggleBtn.classList.remove('active');
-            toggleBtn.title = '이미지 모드: 채팅과 함께 이미지로 전송';
-            showNotification('이미지 모드가 꺼졌습니다.', 'info');
+            toggleBtn.title = '정밀 모드: 모든 영역을 고화질 이미지로 정확하게 분석';
+            showNotification('정밀 모드가 꺼졌습니다.', 'info');
         }
     }
 }

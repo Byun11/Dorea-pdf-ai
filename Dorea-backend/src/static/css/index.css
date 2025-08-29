@@ -1924,4 +1924,70 @@ body.sidebar-collapsed .sidebar {
     100% { transform: rotate(360deg); }
 }
 
+/* =====================================================
+   개조식 체크박스 스타일
+   ===================================================== */
+.quick-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.quick-actions-left {
+    display: flex;
+    gap: 6px;
+}
+
+.quick-actions-center {
+    display: flex;
+    align-items: center;
+    margin: 0 8px;
+}
+
+.quick-actions-right {
+    margin-left: auto;
+}
+
+.bullet-format-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.bullet-format-checkbox:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.bullet-format-checkbox input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+.checkbox-text {
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bullet-format-checkbox input[type="checkbox"]:checked + .checkbox-text {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+
 

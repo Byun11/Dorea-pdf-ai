@@ -1424,6 +1424,31 @@ body.resizing .resize-handle {
     transform: translateY(-1px);
 }
 
+/* 세그먼트 목록 스크롤 */
+.segments-list {
+    max-height: 140px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-secondary) transparent;
+}
+
+.segments-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.segments-list::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.segments-list::-webkit-scrollbar-thumb {
+    background-color: var(--border-secondary);
+    border-radius: 3px;
+}
+
+.segments-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--text-tertiary);
+}
+
 .segment-item {
     background: white;
     border: 1px solid var(--border-primary);
