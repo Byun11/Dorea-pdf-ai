@@ -850,8 +850,8 @@ async def vision_analysis(request: VisionRequest, current_user: User = Depends(g
         print(f"📝 Query: {request.query}")
         print(f"🖼️ 이미지 데이터 길이: {len(request.image) if request.image else 0}")
         
-        # 🆕 이미지 크기 체크
-        if len(request.image) > 100000:  # 100KB 제한
+        # 🆕 이미지 크기 체크 (제한 대폭 완화)
+        if len(request.image) > 2000000:  # 2MB 제한으로 확대
             print(f"⚠️ 이미지가 너무 큼: {len(request.image)} bytes")
             raise HTTPException(status_code=400, detail="이미지 크기가 너무 큽니다. 더 작은 영역을 선택해주세요.")
         

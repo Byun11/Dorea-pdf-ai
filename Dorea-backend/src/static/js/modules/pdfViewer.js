@@ -458,6 +458,12 @@ async function renderSinglePage(pageNum, scale) {
         
         await page.render({ canvasContext: context, viewport }).promise;
 
+        // 뷰포트 정보 저장 (세그먼트 미리보기에서 사용)
+        if (!window.currentPageViewports) {
+            window.currentPageViewports = {};
+        }
+        window.currentPageViewports[pageNum] = viewport;
+
         // 세그먼트 오버레이 업데이트 이벤트 발생
         const event = new CustomEvent('pageRendered', {
             detail: { viewport, pageNum }
@@ -857,7 +863,7 @@ function addPdfControls() {
             <div class="fit-controls" style="display: flex; align-items: center; gap: 8px;">
                 <button class="zoom-btn fit-btn" onclick="window.pdfViewer.fitToWidth()" title="너비 맞춤">↔</button>
                 <button class="zoom-btn fit-btn" onclick="window.pdfViewer.fitToHeight()" title="높이 맞춤">↕</button>
-                <button class="zoom-btn capture-btn" onclick="window.pdfViewer.captureCurrentView()" title="현재 화면 캡처">📷</button>
+                <button class="zoom-btn capture-btn" onclick="window.pdfViewer.captureCurrentView()" title="영역 선택 캡처">✂️</button>
                 <div class="view-settings-dropdown" style="position: relative;">
                     <button class="zoom-btn settings-btn" id="settingsBtn" onclick="window.pdfViewer.toggleViewSettings()" title="뷰 설정">⚙️</button>
                     <div class="view-options-menu" id="viewOptionsMenu" style="display: none; position: absolute; top: 100%; right: 0; background: white; border: 1px solid #e0e0e0; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1002; min-width: 120px; margin-top: 4px;">

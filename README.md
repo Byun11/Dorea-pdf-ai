@@ -99,7 +99,7 @@ docker compose up --build
 
 ### 시스템 요구사항
 - **메모리**: 8GB 이상 (16GB 권장)
-- **디스크**: 10GB 이상의 여유 공간
+- **디스크**: 25GB 이상의 여유 공간
 - **네트워크**: 인터넷 연결 (초기 이미지 다운로드용)
 
 ### 종료하기
@@ -171,12 +171,6 @@ docker compose logs -f ollama
 3. **AI 대화**: 원하는 영역을 클릭하면 해당 내용 기반으로 AI와 대화
 4. **대화 기록**: 모든 대화는 자동으로 저장됨
 
-### 시연 영상
-
-[![시연 영상](https://img.youtube.com/vi/xEo9D5tuc4E/0.jpg)](https://youtu.be/xEo9D5tuc4E)
-
-*음성: Generated using ElevenLabs (https://elevenlabs.io)*
-
 ## 라이선스
 
 Apache License 2.0
@@ -189,6 +183,7 @@ Apache License 2.0
 
 ### 관련 프로젝트
 
+- **[BlueSkyNova](https://github.com/KISTI-AI-Platform-Team/BlueSkyNova)** - KISTI AI 플랫폼팀 공식 저장소
 - **[SpectraBench](https://github.com/gwleee/SpectraBench)** - LLM 벤치마킹 스케줄링 시스템
 - **[KONI](https://github.com/KISTI-AI/KONI)** - KISTI 과학기술정보 특화 언어모델
 - **[KISTI-MCP](https://github.com/KISTI-AI/KISTI-MCP)** - KISTI Model Context Protocol 서버

@@ -99,7 +99,7 @@ docker compose up --build
 
 ### System Requirements
 - **Memory**: 8GB or more (16GB recommended)
-- **Disk**: 10GB or more free space
+- **Disk**: 25GB or more free space
 - **Network**: Internet connection (for initial image downloads)
 
 ### Shutdown
@@ -183,6 +183,7 @@ Apache License 2.0
 
 ### Related Projects
 
+- **[BlueSkyNova](https://github.com/KISTI-AI-Platform-Team/BlueSkyNova)** - KISTI AI Platform Team Official Repository
 - **[SpectraBench](https://github.com/gwleee/SpectraBench)** - LLM Benchmarking Scheduling System
 - **[KONI](https://github.com/KISTI-AI/KONI)** - KISTI Science and Technology Information Specialized Language Model
 - **[KISTI-MCP](https://github.com/KISTI-AI/KISTI-MCP)** - KISTI Model Context Protocol Server

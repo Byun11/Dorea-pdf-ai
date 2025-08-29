@@ -273,22 +273,81 @@ function createSegmentPreviewImage(segment, previewElement) {
             return;
         }
 
-        // 세그먼트 좌표를 캔버스 좌표로 변환 (세그먼트는 PDF 원본 좌표계 사용)
-        const canvasWidth = pageCanvas.width;
-        const canvasHeight = pageCanvas.height;
+        // 캔버스 크기 정보
+        const canvasWidth = pageCanvas.width;  // 내부 해상도
+        const canvasHeight = pageCanvas.height; // 내부 해상도
+        const canvasCSSWidth = pageCanvas.offsetWidth;  // CSS 표시 크기
+        const canvasCSSHeight = pageCanvas.offsetHeight; // CSS 표시 크기
         
-        // 현재 스케일 가져오기 (뷰포트 스케일)
-        const pdfViewer = pageCanvas.closest('.pdf-viewer');
+        // 현재 스케일 가져오기
         let currentScale = 1.0;
         if (window.pdfViewer && window.pdfViewer.getCurrentScale) {
             currentScale = window.pdfViewer.getCurrentScale();
         }
         
-        // 세그먼트 좌표를 캔버스 좌표로 변환
-        const x = segment.left;
-        const y = segment.top; 
-        const width = segment.width;
-        const height = segment.height;
+        // 실제 세그먼트 오버레이 위치 확인 (더 정확한 방법)
+        let actualPosition = null;
+        
+        // 1. 먼저 선택된 세그먼트에서 실제 엘리먼트 찾기
+        const selectedSegment = selectedSegments.find(s => s.id === segment.id || s.left === segment.left && s.top === segment.top);
+        if (selectedSegment && selectedSegment.element) {
+            const rect = selectedSegment.element.getBoundingClientRect();
+            const canvasRect = pageCanvas.getBoundingClientRect();
+            actualPosition = {
+                left: rect.left - canvasRect.left,
+                top: rect.top - canvasRect.top,
+                width: rect.width,
+                height: rect.height
+            };
+            console.log('📍 선택된 세그먼트 엘리먼트에서 위치 추출');
+        } else {
+            // 2. 폴백: data-segment-id로 찾기
+            const segmentId = segment.id || `page${segment.page_number}_${segments.findIndex(s => s === segment)}`;
+            const actualSegmentEl = document.querySelector(`[data-segment-id="${segmentId}"]`);
+            if (actualSegmentEl) {
+                const rect = actualSegmentEl.getBoundingClientRect();
+                const canvasRect = pageCanvas.getBoundingClientRect();
+                actualPosition = {
+                    left: rect.left - canvasRect.left,
+                    top: rect.top - canvasRect.top,
+                    width: rect.width,
+                    height: rect.height
+                };
+                console.log('🎯 data-segment-id로 위치 찾음');
+            }
+        }
+
+        // 디버깅 로그
+        console.log('🔍 세그먼트 미리보기 디버깅:', {
+            segment: { left: segment.left, top: segment.top, width: segment.width, height: segment.height },
+            canvas: { width: canvasWidth, height: canvasHeight },
+            css: { width: canvasCSSWidth, height: canvasCSSHeight },
+            currentScale,
+            ratio: canvasWidth / canvasCSSWidth,
+            viewport: window.currentPageViewports?.[segment.page_number] ? '있음' : '없음',
+            actualSegmentPosition: actualPosition
+        });
+        
+        // 🎯 새로운 접근: 실제 화면의 세그먼트 오버레이 위치를 직접 사용
+        if (actualPosition) {
+            // 실제 세그먼트 오버레이 위치를 캔버스 좌표로 변환
+            const scaleRatio = canvasWidth / canvasCSSWidth;
+            var x = actualPosition.left * scaleRatio;
+            var y = actualPosition.top * scaleRatio; 
+            var width = actualPosition.width * scaleRatio;
+            var height = actualPosition.height * scaleRatio;
+            
+            console.log('✅ 실제 오버레이 위치 사용:', { x, y, width, height });
+        } else {
+            // 폴백: 원본 좌표 직접 사용
+            const scaleRatio = canvasWidth / canvasCSSWidth;
+            var x = segment.left * scaleRatio;
+            var y = segment.top * scaleRatio; 
+            var width = segment.width * scaleRatio;
+            var height = segment.height * scaleRatio;
+            
+            console.log('⚠️ 폴백 좌표 사용:', { x, y, width, height });
+        }
 
         // 좌표 유효성 검사
         if (x < 0 || y < 0 || width <= 0 || height <= 0 || 

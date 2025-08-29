@@ -43,33 +43,13 @@ function createSegmentAttachmentsHTML(segments) {
     let imagePreviewHTML = '';
     if (imageSegments.length > 0) {
         const imagePreviews = imageSegments.map(segment => {
-            const canvas = document.querySelector(`canvas[data-page-number="${segment.page_number}"]`);
-            if (canvas && segment.left !== undefined) {
-                try {
-                    const tempCanvas = document.createElement('canvas');
-                    const tempCtx = tempCanvas.getContext('2d');
-                    
-                    // GPT 스타일: 더 큰 미리보기 (최대 200px)
-                    const maxSize = 200;
-                    const aspectRatio = segment.width / segment.height;
-                    
-                    let previewWidth, previewHeight;
-                    if (aspectRatio > 1) {
-                        previewWidth = Math.min(maxSize, segment.width);
-                        previewHeight = previewWidth / aspectRatio;
-                    } else {
-                        previewHeight = Math.min(maxSize, segment.height);
-                        previewWidth = previewHeight * aspectRatio;
-                    }
-                    
-                    tempCanvas.width = previewWidth;
-                    tempCanvas.height = previewHeight;
-                    
-                    tempCtx.drawImage(
-                        canvas,
-                        segment.left, segment.top, segment.width, segment.height,
-                        0, 0, previewWidth, previewHeight
-                    );
+            // 🎯 이미 생성된 세그먼트 미리보기 이미지를 재사용!
+            const segmentPreview = document.getElementById('segmentPreview');
+            if (segmentPreview) {
+                const existingImg = segmentPreview.querySelector('img');
+                if (existingImg && existingImg.src) {
+                    // 기존 이미지를 더 큰 사이즈로 복사
+                    const imgSrc = existingImg.src;
                     
                     return `
                         <div style="
@@ -79,12 +59,13 @@ function createSegmentAttachmentsHTML(segments) {
                             overflow: hidden;
                             background: white;
                             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-                            max-width: ${previewWidth}px;
+                            max-width: 200px;
                         ">
-                            <img src="${tempCanvas.toDataURL()}" style="
+                            <img src="${imgSrc}" style="
                                 width: 100%;
                                 height: auto;
                                 display: block;
+                                max-width: 200px;
                             ">
                             <div style="
                                 padding: 8px;
@@ -97,12 +78,23 @@ function createSegmentAttachmentsHTML(segments) {
                             </div>
                         </div>
                     `;
-                } catch (error) {
-                    console.warn('큰 미리보기 이미지 생성 실패:', error);
-                    return '';
                 }
             }
-            return '';
+            
+            // 폴백: 세그먼트 정보만 표시
+            return `
+                <div style="
+                    margin: 8px 0;
+                    padding: 20px;
+                    border: 1px solid var(--border-primary);
+                    border-radius: 8px;
+                    text-align: center;
+                    color: var(--text-secondary);
+                    background: var(--bg-tertiary);
+                ">
+                    ${segment.type === 'Picture' ? '🖼️' : '📊'} ${segment.type === 'Picture' ? '이미지' : '도표'} • 페이지 ${segment.page_number}
+                </div>
+            `;
         }).filter(Boolean).join('');
         
         if (imagePreviews) {
