@@ -68,10 +68,10 @@ if !PORT_CONFLICT! == 1 (
 
 :: STEP 4: Select execution mode
 echo [4/5] Select execution mode:
-echo   1. 기본 실행 (빠른 시작 - 외부망 필요)
-echo   2. GPU 가속 지원 (외부망 필요)
-echo   3. 로컬 Ollama 연동 (내부망/폐쇄망 필수)
-echo   4. GPU + 로컬 Ollama 연동 (내부망/폐쇄망 필수)
+echo   1. Basic execution (Quick start - external network required)
+echo   2. GPU acceleration support (external network required)
+echo   3. Local Ollama integration (internal network / air-gapped required)
+echo   4. GPU + Local Ollama integration (internal network / air-gapped required)
 echo.
 set /p MODE="Enter your choice [1-4]: "
 
@@ -93,11 +93,11 @@ if "%MODE%"=="1" (
     )
 ) else if "%MODE%"=="3" (
     echo Starting with pre-built image + Local Ollama...
-    echo [WARNING] 로컬 Ollama가 port 11434에서 실행 중인지 확인하세요!
+    echo [WARNING] Please ensure local Ollama is running on port 11434!
     docker compose -f docker-compose.hub.yml -f docker-compose.local-ollama.yml up -d
 ) else if "%MODE%"=="4" (
     echo Starting with pre-built image + GPU + Local Ollama...
-    echo [WARNING] 로컬 Ollama가 port 11434에서 실행 중인지 확인하세요!
+    echo [WARNING] Please ensure local Ollama is running on port 11434!
     docker compose -f docker-compose.hub.yml -f docker-compose.gpu.yml -f docker-compose.local-ollama.yml up -d
     if errorlevel 1 (
         echo [ERROR] Failed to start in GPU mode. Trying CPU mode with Local Ollama...
